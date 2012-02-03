@@ -2,12 +2,21 @@
 <html>
 	<head>
 		<title>Example use of the MailMojo Content Editor</title>
+
+		<style>
+			#content {
+				width: 700px;
+				height: 600px;
+			}
+		</style>
 	</head>
 	<body>
 		<textarea id="content">
 			&lt;html&gt;
 				&lt;body&gt;
 					&lt;p&gt;This content can be edited soon!&lt;/p&gt;
+
+					&lt;span editable="editable"&gt;Rediger dette!&lt;/span&gt;
 
 					&lt;p&gt;Test of dynamic content elements:&lt;br/&gt;
 						&lt;mm:date format="%d. %B %Y" lang="no" /&gt;&lt;br/&gt;
@@ -26,8 +35,8 @@
 			require(['main'], function () {
 				var content = document.getElementById('content'),
 					editor = MailMojo.ContentEditor.init(content);
+
 				editor.on('initialized.editor', function (e) {
-					console.log(e);
 					console.log('received event that editor is initialized!');
 				});
 			});

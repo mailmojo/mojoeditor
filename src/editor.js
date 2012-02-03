@@ -1,4 +1,4 @@
-define(['util/dom', 'plugins'], function (dom, plugins) {
+define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 	var editorIndex = 0;
 
 	function convertToIframe (textarea) {
@@ -26,6 +26,10 @@ define(['util/dom', 'plugins'], function (dom, plugins) {
 		 * updated with the stuff from the content editor when saved.
 		 */
 		htmlContent = htmlContent.replace(/<head([^>]*)>/gi, '<head$1>\n' + skypeMetaTag);
+
+		// TODO: Improve this very simple auto-scaling
+		iframe.style.width = textarea.offsetWidth + 'px';
+		iframe.style.height = textarea.offsetHeight + 'px';
 
 		textarea.style.display = 'none';
 		textarea.parentNode.insertBefore(iframe, textarea);
@@ -81,11 +85,14 @@ define(['util/dom', 'plugins'], function (dom, plugins) {
 
 
 	var ContentEditor = function (iframe, opts) {
+		var EditorPane = null;
+
 		this.iframe = iframe;
 		this.window = iframe.contentWindow;
 		this.opts = opts;
 		this.initialized = false;
 		this.listenerQueue = [];
+		this.panes = null;
 
 		function loadDependencies (callback) {
 			// TODO: Make sure every browser implicitly creates a head element if it's missing
@@ -107,6 +114,8 @@ define(['util/dom', 'plugins'], function (dom, plugins) {
 			var self = this,
 				$ = this.window.jQuery;
 
+			this.panes = panes.init(this.window);
+
 			/*
 			 * Since internet explorer does not have an importNode function
 			 * we create one for it instead.
@@ -124,9 +133,11 @@ define(['util/dom', 'plugins'], function (dom, plugins) {
 			});
 
 			// LOAD PLUGINS FOR FEATURES
+			console.log('initializing plugins...');
 			$.each(plugins, function (i, plugin) {
 				plugin.register(self);
 			});
+			console.log(plugins.length + ' plugins initialized');
 
 			if (this.listenerQueue.length > 0) {
 				var i = 0, len = this.listenerQueue.length;
@@ -140,6 +151,37 @@ define(['util/dom', 'plugins'], function (dom, plugins) {
 		}
 
 		loadDependencies.call(this, function () { init.call(this); });
+	};
+
+	/**
+	 * Returns an EditorPane of a specific type. If a pane of this type has been created
+	 * earlier, the existing instance is returned. Otherwise a new instance is created.
+	 *
+	 * @param String type Type of the EditorPane, currently either 'Block' or 'Inline' is
+	 *                    supported.
+	 * @param Object opts Extra options for the editorpane which is used when creating a
+	 *                    new instance.
+	 * @return EditorPane
+	 */
+	ContentEditor.prototype.getEditorPane = function (type, opts) {
+		var self = this;
+		return this.panes.getInstance(type, {
+			save: function (e) {
+				self.handleSave(e)
+			},
+			cancel: function (e) {
+				self.handleCancel(e);
+			}
+		});
+	};
+
+	/**
+	 * Return the currently open EditorPane, if any.
+	 *
+	 * @return EditorPane
+	 */
+	ContentEditor.prototype.getCurrentEditorPane = function () {
+		return this.panes.getCurrent();
 	};
 
 	ContentEditor.prototype.on = function (event, callback) {
