@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+	<head>
+		<title>Example use of the MailMojo Content Editor</title>
+	</head>
+	<body>
+		<textarea id="content">
+			&lt;html&gt;
+				&lt;body&gt;
+					&lt;p&gt;This content can be edited soon!&lt;/p&gt;
+
+					&lt;p&gt;Test of dynamic content elements:&lt;br/&gt;
+						&lt;mm:date /&gt;&lt;br/&gt;
+						&lt;mm:subject /&gt;&lt;br/&gt;
+						&lt;mm:from /&gt;
+					&lt;p&gt;
+
+				&lt;/body&gt;
+			&lt;/html&gt;
+		</textarea>
+
+		<!--script src="build/main.min.js"></script-->
+		<script data-main="src/main" src="src/lib/requirejs/require.js"></script>
+		<script>
+			require(['main'], function () {
+				var content = document.getElementById('content'),
+					editor = MailMojo.ContentEditor.init(content);
+				editor.on('initialized.editor', function (e) {
+					console.log(e);
+					console.log('received event that editor is initialized!');
+				});
+			});
+		</script>
+	</body>
+</html>
