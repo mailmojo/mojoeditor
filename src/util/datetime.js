@@ -35,7 +35,29 @@
 
 define(function () {
 	var strftime,
-		_defaults, _useText, _finaliseObj, _dateTimeToDtObj, _objToDtObj;
+		_defaults, _useText, _finaliseObj, _dateTimeToDtObj, _objToDtObj,
+		// jQuery imports
+		class2type, type, isArray;
+
+	// TODO: Abstract away these jQuery imports...
+	class2type = {
+		"[object Boolean]": "boolean",
+		"[object Number]": "number",
+		"[object String]": "string",
+		"[object Function]": "function",
+		"[object Array]": "array",
+		"[object Date]": "date",
+		"[object RegExp]": "regexp",
+		"[object Object]": "object"
+	};
+	type = function( obj ) {
+		return obj === null ?
+			String( obj ) :
+			class2type[ toString.call(obj) ] || "object";
+	};
+	isArray = Array.isArray || function( obj ) {
+		return type(obj) === "array";
+	};
 
 	_defaults = {
 		'days_short' : [ 'Sun', 'Mon' , 'Tue' , 'Wed' , 'Thu' ,
@@ -206,26 +228,26 @@ define(function () {
 
 	strftime.setText = function ( obj ) {
 		if ( typeof obj != 'object' ) {
-			throw new Error( '$.strftime.setText() : invalid parameter' );
+			throw new Error( 'datetime.strftime.setText() : invalid parameter' );
 		}
 
 		var _count = 0;
 		for ( var i in obj ) {
 			if ( typeof _defaults[ i ] == 'undefined' ) {
-				throw new Error( '$.strftime.setText() : invalid field "' + i + '"' );
+				throw new Error( 'datetime.strftime.setText() : invalid field "' + i + '"' );
 			} else if ( i == 'format' && typeof obj[ i ] != 'string' ) {
-				throw new Error( '$.strftime.setText() : invalid type for the "format" field' );
-			} else if ( i != 'format' && !$.isArray(obj[i]) ) {
-				throw new Error( '$.strftime.setText() : field "' + i + '" should be an array' );
+				throw new Error( 'datetime.strftime.setText() : invalid type for the "format" field' );
+			} else if ( i != 'format' && !isArray(obj[i]) ) {
+				throw new Error( 'datetime.strftime.setText() : field "' + i + '" should be an array' );
 			} else if ( obj[ i ].length != _defaults[ i ].length ) {
-				throw new Error( '$.strftime.setText() : field "' + i + '" has incorrect length '
+				throw new Error( 'datetime.strftime.setText() : field "' + i + '" has incorrect length '
 						+ obj[ i ].length + ' (should be ' + _defaults[ i ].length + ')'
 				       );
 			}
 			_count ++;
 		}
 		if ( _count != 5 ) {
-			throw new Error( '$.strftime.setText() : 5 fields expected, ' + _count + ' found' );
+			throw new Error( 'datetime.strftime.setText() : 5 fields expected, ' + _count + ' found' );
 		}
 
 		_useText = obj;
