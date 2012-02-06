@@ -36,9 +36,13 @@
 				var content = document.getElementById('content'),
 					editor = MojoEditor.init(content);
 
-				editor.on('initialized.editor', function (e) {
-					console.log('received event that editor is initialized!');
-				});
+				editor
+					.on('initialized.editor', function (e) {
+						console.log('received event that editor is initialized!');
+					})
+					.on('contentchanged.editor', function (e) {
+						console.log(editor.getContent());
+					});
 			});
 		</script>
 	</body>

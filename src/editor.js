@@ -185,7 +185,7 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 	 */
 	ContentEditor.prototype.handleSave = function (e, editorPane) {
 		this.restore(editorPane.getElement(), editorPane.editor.getData());
-		this.window.jQuery(this.window).trigger('editor.contentChanged');
+		this.window.jQuery(this.window).trigger('contentchanged.editor');
 	};
 
 	/**
@@ -285,6 +285,45 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 		return this.panes.getCurrent();
 	};
 
+
+	/*
+	 * PUBLIC INTERFACE.
+	 */
+	
+	/**
+	 * Returns all content from the editor, without any custom editor
+	 * HTML.
+	 * @return String HTML code from editor.
+	 */
+	ContentEditor.prototype.getContent = function () {
+		var
+			$ = this.window.jQuery,
+			// Clone the actual content (everything inside <body>)
+			$clones = $(this.window.document).children().clone(false),
+			// Create a document fragment <div> with the content, clean up and return HTML
+			html = $('<div/>').append($clones.find('script, link').remove().end())
+				// Remove MailMojo Content Editor elements
+				.find('div.mm-editor, div.mm-add, div.mm-overlay')
+					.remove().end()
+				.find('span.mm-edit, span.mm-remove')
+					.remove().end()
+				.find('img.mm-edit')
+					.remove().end()
+				// Remove CKEditor elements
+				.find('div[id^=cke_], div[class^=cke_]')
+					.remove().end()
+				// Clear default placeholder content
+				//.find(CE.DYNAMIC_ELEMENTS)
+				//	.each(removeDefaultContent).end()
+				.html();
+
+		// Strip XML prolog which is injected by Internet Explorer
+		if ($.browser.msie) {
+			html = html.replace(/<\?xml[^>]+>/gi, '');
+		}
+		return html;
+	};
+
 	ContentEditor.prototype.on = function (event, callback) {
 		if (this.initialized) {
 			this.window.jQuery(this.window).on(event, callback);
@@ -292,6 +331,7 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 		else {
 			this.listenerQueue.push({ e: event, fn: callback });
 		}
+		return this;
 	};
 
 	return {
