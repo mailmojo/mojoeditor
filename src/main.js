@@ -4,7 +4,5 @@ require.config({
 
 define(['editor'], function (Editor) {
 	var global = this;
-
-	global.MailMojo = global.MailMojo || {};
-	global.MailMojo.ContentEditor = Editor;
+	global.MojoEditor = Editor;
 });

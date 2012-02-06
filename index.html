@@ -29,12 +29,12 @@
 			&lt;/html&gt;
 		</textarea>
 
-		<!--script src="build/main.min.js"></script-->
+		<!--script src="build/mojoeditor.min.js"></script-->
 		<script data-main="src/main" src="src/lib/requirejs/require.js"></script>
 		<script>
 			require(['main'], function () {
 				var content = document.getElementById('content'),
-					editor = MailMojo.ContentEditor.init(content);
+					editor = MojoEditor.init(content);
 
 				editor.on('initialized.editor', function (e) {
 					console.log('received event that editor is initialized!');

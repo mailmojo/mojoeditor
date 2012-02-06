@@ -64,9 +64,9 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 				 * states. Internet Explorer may report either one of them, depending on how
 				 * the file was loaded (i.e. from cache or server).
 				 */
-				if (e.type == 'load'
-						|| (e.type == 'readystatechange' &&
-								(script.readyState == 'complete' || script.readyState == 'loaded'))) {
+				if (e.type == 'load' ||
+						(e.type == 'readystatechange' &&
+							(script.readyState == 'complete' || script.readyState == 'loaded'))) {
 					fn(e);
 					// We don't want to trigger both onreadystatechange and onload in a browser.
 					script.onreadystatechange = script.onload = null;
@@ -93,6 +93,7 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 		this.initialized = false;
 		this.listenerQueue = [];
 		this.panes = null;
+		this.ui = {};
 
 		function loadDependencies (callback) {
 			// TODO: Make sure every browser implicitly creates a head element if it's missing
@@ -115,6 +116,28 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 				$ = this.window.jQuery;
 
 			this.panes = panes.init(this.window);
+
+			// TODO: Move to separate init method or similar?
+			this.ui.buttons = {
+				edit: $('<span class="mm-edit" />').append(
+					'<img src="http://static.mailmojo/img/icons/edit.png" alt="Rediger" />')
+			};
+			this.ui.overlay = $('<div class="mm-overlay" />')
+				.css({
+					position: 'fixed',
+					top: 0,
+					left: 0,
+					width: '100%',
+					// TODO: Size dynamically
+					height: '100%',
+					backgroundColor: '#ffffff',
+					opacity: 0.5,
+					zIndex: 900  // The editor panel has a z-index of 1000
+				})
+				.bind('mousedown selectstart', function (e) {
+					e.preventDefault();
+					return false;
+				});
 
 			/*
 			 * Since internet explorer does not have an importNode function
@@ -154,6 +177,78 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 	};
 
 	/**
+	 * Handles a save event from an EditorPane. Saves the current content in the
+	 * WYSIWYG editor back into the element being edited.
+	 *
+	 * @param Event e
+	 * @param EditorPane editorPane The pane which triggered the save event.
+	 */
+	ContentEditor.prototype.handleSave = function (e, editorPane) {
+		this.restore(editorPane.getElement(), editorPane.editor.getData());
+		this.window.jQuery(this.window).trigger('editor.contentChanged');
+	};
+
+	/**
+	 * Handles a cancel event from an EditorPane. Cancels editing by restoring current
+	 * element being edited to it's original state.
+	 *
+	 * @param Event e
+	 * @param EditorPane editorPane The pane which triggered the cancel event.
+	 */
+	ContentEditor.prototype.handleCancel = function (e, editorPane) {
+		this.restore(editorPane.getElement());
+	};
+
+	/**
+	 * Restores an element from being edited to it's normal state, optionally replacing it's
+	 * contents.
+	 *
+	 * @param HTMLElement | jQuery element The element to restore.
+	 * @param String newContent            HTML with new content, if any.
+	 */
+	ContentEditor.prototype.restore = function (element, newContent) {
+		var $ = this.window.jQuery,
+			$element = $(element);
+		// Removes the dimmed overlay. XXX: Let plugins handle?
+		//this.toggleOverlay(false);
+
+		if (typeof newContent !== 'undefined') {
+			$element.html(newContent);
+			this.cleanup(element);
+		}
+	};
+
+	/**
+	 * Performs some pre-processing of the content inside an element, cleaning up attributes
+	 * after being edited in CKEditor.
+	 * Currently only finds and cleans all images.
+	 *
+	 * @param HTMLElement element The element to cleanup contents of.
+	 */
+	ContentEditor.prototype.cleanup = function (element) {
+		var $element = this.window.jQuery(element);
+		$element.find('img').each(function () {
+			// TODO: Implement, should be factored out someplace...
+			//cleanupImage(this);
+		});
+	};
+
+	/**
+	 * Displays/hides an overlay behind the editor panel after clicking on an editable element. Makes
+	 * it impossible to click on other editables when having an edit panel open.
+	 *
+	 * @param bool enable
+	 */
+	ContentEditor.prototype.toggleOverlay = function (enable) {
+		if (enable) {
+			this.window.jQuery('body').append(this.ui.overlay);
+		}
+		else {
+			this.ui.overlay.remove();
+		}
+	};
+
+	/**
 	 * Returns an EditorPane of a specific type. If a pane of this type has been created
 	 * earlier, the existing instance is returned. Otherwise a new instance is created.
 	 *
@@ -166,11 +261,17 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 	ContentEditor.prototype.getEditorPane = function (type, opts) {
 		var self = this;
 		return this.panes.getInstance(type, {
-			save: function (e) {
-				self.handleSave(e)
+			save: function (e, pane) {
+				self.handleSave(e, pane);
+				if (typeof opts.handleSave !== "undefined") {
+					opts.handleSave(self, pane);
+				}
 			},
-			cancel: function (e) {
-				self.handleCancel(e);
+			cancel: function (e, pane) {
+				self.handleCancel(e, pane);
+				if (typeof opts.handleCancel !== "undefined") {
+					opts.handleCancel(self, pane);
+				}
 			}
 		});
 	};

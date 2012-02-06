@@ -5,7 +5,7 @@ var requirejs = require('./r.js'),
 		wrap: true,
 		name: 'lib/requirejs/almond',
 		include: ['main'],
-		out: 'build/main.min.js'
+		out: 'build/mojoeditor.min.js'
 	};
 
 if (process.argv.indexOf('-o') !== -1 || process.argv.indexOf('--optimize') !== -1) {

@@ -123,7 +123,14 @@ define(['./ckeditor_config'], function (editorConfig) {
 						.append(' eller ')
 						.append('<button type="button" class="cancel">avbryt</button>')
 						// Hide without setting 'display: none', see the EditorPane.hide() method
-						.css('left', '-1000px')
+						.css({
+							position: 'absolute',
+							top: '0px',
+							left: '-1000px',
+							// TODO: Dynamic width
+							width: 600,
+							zIndex: 9000
+						})
 						.prependTo(document.body);
 
 			opts = $.extend({}, opts);

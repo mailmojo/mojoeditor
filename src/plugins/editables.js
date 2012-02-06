@@ -29,10 +29,8 @@ define(function () {
 	EditablesManager = function (editor) {
 		this.editor = editor;
 
-		var $editButton = jQuery('<span class="mm-edit" />').append(editIconHtml);
-
 		jQuery(EditablesManager.SELECTOR)
-			.append($editButton)
+			.append(editor.ui.buttons.edit.clone())
 			.find('span.mm-edit')
 				.click(jQuery.proxy(this.edit, this));
 	};
@@ -52,7 +50,7 @@ define(function () {
 			$container = $button.parent(),
 			type = isBlockElement($container) ? 'Block' : 'Inline';
 		// Adds an overlay to the background
-		//toggleOverlay(true);
+		this.editor.toggleOverlay(true);
 
 		// Makes it impossible to open a new dialog, when a dialog is already open.
 		if (this.editor.getCurrentEditorPane() !== null) {
@@ -62,8 +60,18 @@ define(function () {
 		// Remove edit button from the content to be edited
 		$button.remove();
 
+		var resetter = jQuery.proxy(function (editor, pane) {
+			var $button = editor.ui.buttons.edit.clone();
+			editor.toggleOverlay(false);
+			$container.append($button.click(jQuery.proxy(this.edit, this)));
+		}, this);
+		
 		// Get a reference for an appropriate editor pane and display it
-		this.editor.getEditorPane(type/*, editorPaneOpts*/)
+		this.editor
+			.getEditorPane(type, {
+				handleSave: resetter,
+				handleCancel: resetter
+			})
 			.setElement($container).show();
 	}
 
