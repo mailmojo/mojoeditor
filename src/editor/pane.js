@@ -201,6 +201,48 @@ define(['./ckeditor_config'], function (editorConfig) {
 				return (this.element && this.element[0]) || null;
 			},
 			/**
+			 * Internal abstraction around the 'getSelectedElement' method of a dialog to fix problems
+			 * with empty selections in Internet Explorer. This simply tries to get the selected element
+			 * of the dialog, but if the selection is empty it creates a new selection with the first element
+			 * of the specified type selected, and then returns this element.
+			 *
+			 * @scope CKEditor.dialog
+			 */
+			getSelectedElement: function (elementType) {
+				var
+					/**
+					 * @var CKEDITOR.dom.document
+					 */
+					doc = this.getParentEditor().document,
+					/**
+					 * @var CKEDITOR.dom.selection
+					 */
+					selection = this.getParentEditor().getSelection(),
+					/**
+					 * @var CKEDITOR.dom.element
+					 */
+					element;
+
+				/*
+				 * This is a work around for browsers (Internet Explorer) where the selection is lost when
+				 * clicking "OK" in a dialog. In these cases we simply search for the first element of the type
+				 * we are interested in within the editor and create a new selection with it. Since this is within
+				 * the CKEditor document this will always be the only element of the type, being the element we injected
+				 * into the CKEditor document when we initialized the dialog.
+				 */
+				if (selection === null) {
+					selection = new CKEDITOR.dom.selection(doc);
+					selection.selectElement(doc.getElementsByTag(elementType).getItem(0));
+				}
+
+				/*
+				 * In some cases, like with link elements, we need to fetch the selection start element to
+				 * get the element properly in WebKit. But this is synonymous with getting the selected
+				 * element of a single element selection and works fine in Firefox etc. as well.
+				 */
+				return selection.getSelectedElement() || selection.getStartElement();
+			},
+			/**
 			 * Returns the type of this EditorPane.
 			 *
 			 * @return String

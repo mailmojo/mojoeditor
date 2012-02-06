@@ -94,7 +94,8 @@ define(function () {
 		 */
 		updateAttribute: function (el, name, value) {
 			if (value && value !== "") {
-				$(el).attr(name, value);
+				//$(el).attr(name, value);
+				el.setAttribute(name, value);
 			}
 			else {
 				// IE7 does not support removal of class attribute, so empty string as fallback

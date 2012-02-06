@@ -262,6 +262,9 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 	 */
 	ContentEditor.prototype.getEditorPane = function (type, opts) {
 		var self = this;
+
+		opts = opts || {};
+
 		return this.panes.getInstance(type, {
 			save: function (e, pane) {
 				self.handleSave(e, pane);
@@ -274,7 +277,8 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 				if (typeof opts.handleCancel !== "undefined") {
 					opts.handleCancel(self, pane);
 				}
-			}
+			},
+			ready: (typeof opts.ready !== "undefined" ? opts.ready : null)
 		});
 	};
 
