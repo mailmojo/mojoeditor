@@ -120,7 +120,11 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 			// TODO: Move to separate init method or similar?
 			this.ui.buttons = {
 				edit: $('<span class="mm-edit" />').append(
-					'<img src="http://static.mailmojo/img/icons/edit.png" alt="Rediger" />')
+					'<img src="http://static.mailmojo/img/icons/edit.png" alt="Rediger" />'),
+				add: $('<div class="mm-add" />').append(
+					'<button type="button" class="add">Legg til ny</button>'),
+				remove: $('<span class="mm-remove" />').append(
+					'<img src="http://static.mailmojo/img/icons/delete.png" alt="Slett" />')
 			};
 			this.ui.overlay = $('<div class="mm-overlay" />')
 				.css({

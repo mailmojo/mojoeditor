@@ -1,7 +1,7 @@
-define(['plugins/dynamic_content', 'plugins/editables'],
-	function (dynamicContent, editables) {
+define(['plugins/dynamic_content', 'plugins/editables', 'plugins/snippets'],
+	function (dynamicContent, editables, snippets) {
 		return [
-			dynamicContent, editables
+			dynamicContent, editables, snippets
 		];
 	}
 );

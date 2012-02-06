@@ -5,13 +5,7 @@ define(function () {
 		 * Internet Explorer does not support namespaces, so match without namespace for it.
 		 * @var Array
 		 */
-		BLOCK_ELEMENTS = ['mm:content'], //$.support.namespaces ? ['mm:content'] : ['content'],
-		/**
-		 * HTML for creating an image with the edit icon.
-		 * @var String
-		 */
-		editIconHtml = '<img src="' + 'http://static.mailmojo' +
-				'/img/icons/edit.png" alt="Rediger" />';
+		BLOCK_ELEMENTS = ['mm:content']; //$.support.namespaces ? ['mm:content'] : ['content'],
 
 	/**
 	 * Determines if an element is one of the block editable elements.
