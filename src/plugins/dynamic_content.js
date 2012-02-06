@@ -156,11 +156,10 @@ define(['locales', 'util/datetime'], function (locales, datetime) {
 
 			jQuery(DYNAMIC_ELEMENTS).each(addDefaultContent);
 
-			editor.on('filtercontent.editor', function () {
-				return this
+			editor.on('filtercontent.editor', function (e, $content) {
+				$content
 					.find(DYNAMIC_ELEMENTS)
-						.each(removeDefaultContent)
-					.end();
+						.each(removeDefaultContent);
 			});
 		}
 	};

@@ -217,7 +217,8 @@ define(['./ckeditor_config'], function (editorConfig) {
 			 */
 			show: function () {
 				var self = this;
-	
+
+
 				if (mode == 'single' && current !== null) {
 					if (this.type != current.getType()) {
 						current.hide();
@@ -228,9 +229,11 @@ define(['./ckeditor_config'], function (editorConfig) {
 
 				$(this.pane).hide().css('left', '0px').slideDown(150, function () {
 					// Expand editor to fit all text, has to be done when pane is visible
-					adjustSize(self.editor);
-					self.editor.focus();
-					current = self;
+					setTimeout(function () {
+						adjustSize(self.editor);
+						self.editor.focus();
+						current = self;
+					}, 10);
 				});
 				return this;
 			},

@@ -38,10 +38,11 @@
 
 				editor
 					.on('initialized.editor', function (e) {
-						console.log('received event that editor is initialized!');
+						console.log('editor is initialized!');
 					})
 					.on('contentchanged.editor', function (e) {
-						console.log(editor.getContent());
+						var content = editor.getContent();
+						// Do something with the updated HTML content here
 					});
 			});
 		</script>

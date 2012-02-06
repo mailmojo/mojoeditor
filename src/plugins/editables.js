@@ -61,9 +61,9 @@ define(function () {
 		$button.remove();
 
 		var resetter = jQuery.proxy(function (editor, pane) {
-			var $button = editor.ui.buttons.edit.clone();
+			var $newButton = editor.ui.buttons.edit.clone();
 			editor.toggleOverlay(false);
-			$container.append($button.click(jQuery.proxy(this.edit, this)));
+			$container.append($newButton.click(jQuery.proxy(this.edit, this)));
 		}, this);
 		
 		// Get a reference for an appropriate editor pane and display it

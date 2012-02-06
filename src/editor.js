@@ -170,7 +170,7 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 			}
 
 			this.initialized = true;
-			$(this.window).trigger('initialized.editor');
+			this.trigger('initialized.editor');
 		}
 
 		loadDependencies.call(this, function () { init.call(this); });
@@ -185,7 +185,7 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 	 */
 	ContentEditor.prototype.handleSave = function (e, editorPane) {
 		this.restore(editorPane.getElement(), editorPane.editor.getData());
-		this.window.jQuery(this.window).trigger('contentchanged.editor');
+		this.trigger('contentchanged.editor');
 	};
 
 	/**
@@ -298,10 +298,15 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 	ContentEditor.prototype.getContent = function () {
 		var
 			$ = this.window.jQuery,
-			// Clone the actual content (everything inside <body>)
 			$clones = $(this.window.document).children().clone(false),
-			// Create a document fragment <div> with the content, clean up and return HTML
-			html = $('<div/>').append($clones.find('script, link').remove().end())
+			$fragment = null,
+			html = '';
+
+		// Strip out our custom content in the <head>
+		$clones = $clones.find("meta[name='SKYPE_TOOLBAR'], script, link").remove().end();
+
+		// Create a document fragment <div> with the content, clean up and return HTML
+		$fragment = $('<div/>').append($clones)
 				// Remove MailMojo Content Editor elements
 				.find('div.mm-editor, div.mm-add, div.mm-overlay')
 					.remove().end()
@@ -311,11 +316,12 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 					.remove().end()
 				// Remove CKEditor elements
 				.find('div[id^=cke_], div[class^=cke_]')
-					.remove().end()
-				// Clear default placeholder content
-				//.find(CE.DYNAMIC_ELEMENTS)
-				//	.each(removeDefaultContent).end()
-				.html();
+					.remove().end();
+
+		// Let plugins clean up content too
+		this.trigger('filtercontent.editor', [$fragment]);
+
+		html = $fragment.html();
 
 		// Strip XML prolog which is injected by Internet Explorer
 		if ($.browser.msie) {
@@ -332,6 +338,15 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 			this.listenerQueue.push({ e: event, fn: callback });
 		}
 		return this;
+	};
+
+	/**
+	 * Convenience alias for triggering global events in the editor context.
+	 */
+	ContentEditor.prototype.trigger = function (event) {
+		var $window = this.window.jQuery(this.window),
+			args = Array.prototype.slice.call(arguments);
+		$window.trigger.apply($window, args);
 	};
 
 	return {
