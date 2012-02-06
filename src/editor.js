@@ -155,12 +155,10 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 				e.preventDefault();
 			});
 
-			// LOAD PLUGINS FOR FEATURES
-			console.log('initializing plugins...');
+			// Register each plugin
 			$.each(plugins, function (i, plugin) {
 				plugin.register(self);
 			});
-			console.log(plugins.length + ' plugins initialized');
 
 			if (this.listenerQueue.length > 0) {
 				var i = 0, len = this.listenerQueue.length;
@@ -379,6 +377,13 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 			}			
 
 			return new ContentEditor(el, opts);
+		},
+
+		addPlugin: function (plugin) {
+			if (!plugin.hasOwnProperty('register')) {
+				throw new Exception("Invalid plugin signature.");
+			}
+			plugins.push(plugin);
 		}
 	};
 });
