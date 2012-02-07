@@ -345,9 +345,6 @@ define('editor/ckeditor_config',{
 	resize_minHeight: 100,
 	resize_maxHeight: 380,
 
-	// URL to action for uploading images
-	filebrowserImageUploadUrl: '/mailings/' + '91201' + '/images/upload',
-
 	// Avoid loading separate config.js
 	customConfig: ''
 });
@@ -389,438 +386,6 @@ define('locales',{
 				'August', 'September', 'October', 'November', 'December'],
 		'format': '%m/%d/%Y'
 	}
-});
-
-/*
- * datetime module.
- *
- * strftime functionality based on:
- *
- * JQuery strftime plugin
- * Version 1.0.1 (12/06/2008)
- *
- * No documentation at this point, sorry.
- *
- * Home page: http://projects.nocternity.net/jquery-strftime/
- * Examples: http://projects.nocternity.net/jquery-strftime/demo.html
- *
- * Copyright (c) 2008 Emmanuel Benoît
- * 
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files (the
- * "Software"), to deal in the Software without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Software, and to
- * permit persons to whom the Software is furnished to do so, subject to
- * the following conditions:
- * 
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
- * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
- * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
- * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
- */
-
-define('util/datetime',[],function () {
-	var strftime,
-		_defaults, _useText, _finaliseObj, _dateTimeToDtObj, _objToDtObj,
-		// jQuery imports
-		class2type, type, isArray;
-
-	// TODO: Abstract away these jQuery imports...
-	class2type = {
-		"[object Boolean]": "boolean",
-		"[object Number]": "number",
-		"[object String]": "string",
-		"[object Function]": "function",
-		"[object Array]": "array",
-		"[object Date]": "date",
-		"[object RegExp]": "regexp",
-		"[object Object]": "object"
-	};
-	type = function( obj ) {
-		return obj === null ?
-			String( obj ) :
-			class2type[ Object.prototype.toString.call(obj) ] || "object";
-	};
-	isArray = Array.isArray || function( obj ) {
-		return type(obj) === "array";
-	};
-
-	_defaults = {
-		'days_short' : [ 'Sun', 'Mon' , 'Tue' , 'Wed' , 'Thu' ,
-				'Fri' , 'Sat' ] ,
-		'days_long' : [ 'Sunday' , 'Monday' , 'Tuesday' ,
-				'Wednesday' , 'Thursday' , 'Friday' ,
-				'Saturday' ] ,
-		'months_short' : [ 'Jan' , 'Feb' , 'Mar' , 'Apr' ,
-				'May' , 'Jun' , 'Jul' , 'Aug' ,
-				'Sep' , 'Oct' , 'Nov' , 'Dec' ] ,
-		'months_long' : [ 'January' , 'February' , 'March' ,
-				'April' , 'May' , 'June' , 'July' ,
-				'August' , 'September' , 'October' ,
-				'November' , 'December' ] ,
-		'format' : '%m/%d/%Y'
-	};
-
-	_useText = _defaults;
-
-	_finaliseObj = function ( _obj , _month , _dow ) {
-		_obj.a = _useText.days_short[ _dow ];
-		_obj.A = _useText.days_long[ _dow ];
-		_obj.b = _useText.months_short[ _month ];
-		_obj.B = _useText.months_long[ _month ];
-		_obj.m = _month + 1;
-
-		var _tmp;
-
-		if ( _obj.Y > 0 ) {
-			_tmp = _obj.Y.toString( );
-			if ( _tmp.length < 2 ) {
-				_tmp = '0' + _tmp;
-			} else if ( _tmp.length > 2 ) {
-				_tmp = _tmp.substring( _tmp.length - 2 );
-			}
-			_obj.y = _tmp;
-		} else {
-			_obj.y = _obj.Y;
-		}
-
-		var _check = [ 'd' , 'm' , 'H' , 'M' , 'S' ];
-		for ( var i in _check ) {
-			_tmp = _obj[ _check[ i ] ];
-			_tmp = _tmp.toString( );
-			if ( _tmp.length < 2 ) {
-				_tmp = '0' + _tmp;
-			}
-			_obj[ _check[ i ] ] = _tmp;
-		}
-
-		if (_obj.e < 10) {
-			_obj.e = ' ' + _obj.e.toString();
-		}
-
-		return _obj;
-	};
-
-	_dateTimeToDtObj = function ( dateTime , utc ) {
-		var _obj, _month, _dow;
-		if ( utc ) {
-			_obj = {
-				'H' : dateTime.getUTCHours( ) ,
-				'M' : dateTime.getUTCMinutes( ) ,
-				'S' : dateTime.getUTCSeconds( ) ,
-				'd' : dateTime.getUTCDate( ) ,
-				'e' : dateTime.getUTCDate( ),
-				'Y' : dateTime.getUTCFullYear( )
-			};
-			_month = dateTime.getUTCMonth( );
-			_dow = dateTime.getUTCDay( );
-		} else {
-			_obj = {
-				'H' : dateTime.getHours( ) ,
-				'M' : dateTime.getMinutes( ) ,
-				'S' : dateTime.getSeconds( ) ,
-				'd' : dateTime.getDate( ) ,
-				'e' : dateTime.getDate( ) ,
-				'Y' : dateTime.getFullYear( )
-			};
-			_month = dateTime.getMonth( );
-			_dow = dateTime.getDay( );
-		}
-		return _finaliseObj( _obj , _month , _dow );
-	};
-
-	_objToDtObj = function ( obj ) {
-		var _defs = {
-			'H' : 0 ,
-			'M' : 0 ,
-			'S' : 0 ,
-			'd' : 1 ,
-			'e' : 1 ,
-			'Y' : 1 ,
-			'm' : 1
-		};
-		var _dtObj = {};
-
-		for ( var i in _defs ) {
-			if ( typeof obj[ i ] != 'number' || obj[ i ] % 1 != 0 ) {
-				_dtObj[ i ] = _defs[ i ];
-			} else {
-				_dtObj[ i ] = obj[ i ];
-			}
-		}
-
-		_dtObj.m --;
-
-		var _dow;
-		if ( typeof obj.dow == 'number' && obj.dow % 1 == 0 ) {
-			_dow = obj.dow;
-		} else {
-			_dow = 0;
-		}
-
-		return _finaliseObj( _dtObj , _dtObj.m , _dow );
-	};
-
-	strftime = function ( fmt , dateTime , utc ) {
-
-		if ( fmt && typeof fmt == 'object' ) {
-			dateTime = fmt.dateTime;
-			utc = fmt.utc;
-			fmt = fmt.format;
-		}
-
-		if ( !fmt || ( typeof fmt != 'string' ) ) {
-			fmt = _useText.format;
-		}
-
-		var _dtObj;
-		if ( dateTime && ( typeof dateTime == 'object' ) ) {
-			if ( dateTime instanceof Date ) {
-				_dtObj = _dateTimeToDtObj( dateTime , utc );
-			} else {
-				_dtObj = _objToDtObj( dateTime );
-			}
-		} else {
-			_dtObj = _dateTimeToDtObj( new Date( ) , utc );
-		}
-
-		var _text = '' , _state = 0;
-		for ( var i = 0 ; i < fmt.length ; i ++ ) {
-			if ( _state == 0 ) {
-				if ( fmt.charAt(i) == '%' ) {
-					_state = 1;
-				} else {
-					_text += fmt.charAt( i );
-				}
-			} else {
-				if ( typeof _dtObj[ fmt.charAt( i ) ] != 'undefined' ) {
-					_text += _dtObj[ fmt.charAt( i ) ];
-				} else {
-					_text += '%';
-					if ( fmt.charAt( i ) != '%' ) {
-						_text += fmt.charAt( i );
-					}
-				}
-				_state = 0;
-			}
-		}
-		if ( _state == 1 ) {
-			_text += '%';
-		}
-
-		return _text;
-	};
-
-
-	strftime.setText = function ( obj ) {
-		if ( typeof obj != 'object' ) {
-			throw new Error( 'datetime.strftime.setText() : invalid parameter' );
-		}
-
-		var _count = 0;
-		for ( var i in obj ) {
-			if ( typeof _defaults[ i ] == 'undefined' ) {
-				throw new Error( 'datetime.strftime.setText() : invalid field "' + i + '"' );
-			} else if ( i == 'format' && typeof obj[ i ] != 'string' ) {
-				throw new Error( 'datetime.strftime.setText() : invalid type for the "format" field' );
-			} else if ( i != 'format' && !isArray(obj[i]) ) {
-				throw new Error( 'datetime.strftime.setText() : field "' + i + '" should be an array' );
-			} else if ( obj[ i ].length != _defaults[ i ].length ) {
-				throw new Error( 'datetime.strftime.setText() : field "' + i + '" has incorrect length '
-						+ obj[ i ].length + ' (should be ' + _defaults[ i ].length + ')'
-				       );
-			}
-			_count ++;
-		}
-		if ( _count != 5 ) {
-			throw new Error( 'datetime.strftime.setText() : 5 fields expected, ' + _count + ' found' );
-		}
-
-		_useText = obj;
-	};
-
-	strftime.defaults = function ( ) {
-		_useText = _defaults;
-	};
-
-	return {
-		"strftime": strftime
-	};
-});
-
-
-define('plugins/dynamic_content',['locales', 'util/datetime'], function (locales, datetime) {
-	var jQuery,
-		DYNAMIC_ELEMENTS = "mm\\:date, date, mm\\:from, from, mm\\:subject, subject, mm\\:share, share";
-
-	/**
-	 * Utility class for managing sharing service buttons (Facebook and Twitter so far).
-	 *
-	 * @param HTMLElement element The MailMojo mm:share element to create a service for.
-	 * @param Boolean useCustomContent TRUE if the contents of the share element should be used,
-	 *                                 FALSE if the default content should be used.
-	 * @constructor
-	 */
-	function ShareService (element, useCustomContent) {
-		var serviceName = element.getAttribute('on').toLowerCase();
-		if (serviceName != 'facebook' && serviceName != 'twitter') {
-			throw new Exception("Unknown share service.");
-		}
-
-		this.serviceName = serviceName;
-		this.content = null;
-
-		if (useCustomContent) {
-			element.className = 'custom';
-			this.content = $(element).contents().get();
-		}
-	}
-	/**
-	 * Returns a sharing service link button, either with custom content or our default
-	 * content with an icon for the sharing service.
-	 *
-	 * @return HTMLElement
-	 */
-	ShareService.prototype.getButton = function () {
-		var $link = jQuery('<a href="#" />');
-
-		if (this.content !== null) {
-			$link.append(this.content);
-		}
-		else if (this.serviceName == 'facebook') {
-			$link.append('<img src="http://www.facebook.com/images/connect_favicon.png" border="0" width="14" height="14" />');
-		}
-		else if (this.serviceName == 'twitter') {
-			$link.append('<img src="http://twitter-badges.s3.amazonaws.com/t_mini-a.png" border="0" width="16" height="16" />');
-		}
-
-		return $link[0];
-	};
-
-	/**
-	 * Checks if an element contains any child nodes or text nodes containing text other than
-	 * white space.
-	 *
-	 * @param HTMLElement element The element to check for emptyness.
-	 * @return Boolean TRUE if the element has no child nodes or only contains one text node
-	 *                 with only whitespace. FALSE otherwise.
-	 */
-	function isEmptyElement (element) {
-		var nodes = element.childNodes,
-			num = nodes.length;
-
-		return (num === 0 ||
-				(num == 1 && nodes[0].nodeValue && nodes[0].nodeValue.match(/^\s*$/)));
-	}
-
-	/**
-	 * Adds default placeholder content while editing for elements which will be replaced by
-	 * dynamic content before actually sending the mailing.
-	 * It also takes care to not replace custom content in <mm:share> elements with placeholder
-	 * content.
-	 * Used as a callback for jQuery.fn.each.
-	 *
-	 * @param Number i            Index among all dynamic elements.
-	 * @param HTMLElement element The dynamic element to add placeholder content for.
-	 */
-	function addDefaultContent (i, element) {
-		// Normalize element name (without namespace) to how Explorer reports it
-		var name = element.nodeName.toLowerCase().replace('mm:', ''),
-			isEmpty = isEmptyElement(element),
-			content = null;
-
-		switch (name) {
-			case 'share':
-				try {
-					content = new ShareService(element, !isEmpty).getButton();
-					// This method of copying inline styles also works in IE7
-					content.style.cssText = element.style.cssText;
-				}
-				catch (e) {}
-				break;
-
-			case 'date':
-				var
-					dateFormat = element.getAttribute('format'),
-					lang = element.getAttribute('lang') || 'no';
-
-				datetime.strftime.setText(locales[lang]);
-				content = datetime.strftime(dateFormat);
-				break;
-
-			case 'subject':
-				content = '[Emne kommer her]';
-				break;
-
-			case 'from':
-				content = '[Avsendernavn kommer her]';
-				break;
-		}
-
-		if (content) {
-			if (typeof content === 'string') {
-				content = document.createTextNode(content);
-			}
-			element.appendChild(content);
-		}
-	}
-
-	/**
-	 * Removes all default placeholder content in dynamic content elements.
-	 * Used as a callback for jQuery.fn.each before returning the complete mailing content.
-	 *
-	 * @param Number i            Index among all dynamic elements.
-	 * @param HTMLElement element The dynamic element to remove placeholder content for.
-	 */
-	function removeDefaultContent (i, element) {
-		// Normalize element name (without namespace) to how Explorer reports it
-		var name = element.nodeName.toLowerCase().replace('mm:', ''),
-			$element = jQuery(element);
-
-		switch (name) {
-			case 'share':
-				/*
-				 * For share elements with custom content, just remove the placeholder link
-				 * and leave the custom content inside the share element. Otherwise we empty
-				 * the element completely as with other default content.
-				 */
-				if ($element.hasClass('custom')) {
-					var $link = $element.children('a');
-
-					$element.append($link.contents());
-					$link.remove();
-					break;
-				}
-
-			case 'date':
-			case 'subject':
-			case 'from':
-				$element.empty();
-				break;
-		}
-	}
-
-
-	return {
-		register: function (editor) {
-			jQuery = editor.window.jQuery;
-
-			jQuery(DYNAMIC_ELEMENTS).each(addDefaultContent);
-
-			editor.on('filtercontent.editor', function (e, $content) {
-				$content
-					.find(DYNAMIC_ELEMENTS)
-						.each(removeDefaultContent);
-			});
-		}
-	};
 });
 
 define('plugins/editables',[],function () {
@@ -1666,6 +1231,10 @@ define('editor/pane',['./ckeditor_config', '../util/dom'], function (editorConfi
 			 */
 			getCurrent: function () {
 				return current;
+			},
+
+			setEditorOption: function (name, value) {
+				editorConfig[name] = value;
 			}
 		};
 	}
@@ -2204,6 +1773,540 @@ define('plugins/images',['../util/dom'], function (dom) {
 	};
 });
 
+define('util/type',[],function () {
+	var exports = {},
+		hasOwn = Object.prototype.hasOwnProperty,
+		class2type, type;
+
+	class2type = {
+		"[object Boolean]": "boolean",
+		"[object Number]": "number",
+		"[object String]": "string",
+		"[object Function]": "function",
+		"[object Array]": "array",
+		"[object Date]": "date",
+		"[object RegExp]": "regexp",
+		"[object Object]": "object"
+	};
+	type = function( obj ) {
+		return obj === null ?
+			String( obj ) :
+			class2type[ Object.prototype.toString.call(obj) ] || "object";
+	};
+
+	exports.isArray = Array.isArray || function( obj ) {
+		return type(obj) === "array";
+	};
+
+	exports.isFunction = function( obj ) {
+		return type(obj) === "function";
+	};
+
+	exports.isPlainObject = function( obj ) {
+		// Must be an Object.
+		// Because of IE, we also have to check the presence of the constructor property.
+		// Make sure that DOM nodes and window objects don't pass through, as well
+		if ( !obj || type(obj) !== "object" || obj.nodeType || exports.isWindow( obj ) ) {
+			return false;
+		}
+
+		try {
+			// Not own constructor property must be Object
+			if ( obj.constructor &&
+				!hasOwn.call(obj, "constructor") &&
+				!hasOwn.call(obj.constructor.prototype, "isPrototypeOf") ) {
+				return false;
+			}
+		} catch ( e ) {
+			// IE8,9 Will throw exceptions on certain host objects #9897
+			return false;
+		}
+
+		// Own properties are enumerated firstly, so to speed up,
+		// if last one is own, then all properties are own.
+
+		var key;
+		for ( key in obj ) {}
+
+		return key === undefined || hasOwn.call( obj, key );
+	};
+
+	exports.isWindow = function( obj ) {
+		return obj && typeof obj === "object" && "setInterval" in obj;
+	};
+
+	exports.extend = function () {
+		var options, name, src, copy, copyIsArray, clone,
+			target = arguments[0] || {},
+			i = 1,
+			length = arguments.length,
+			deep = false;
+
+		// Handle a deep copy situation
+		if ( typeof target === "boolean" ) {
+			deep = target;
+			target = arguments[1] || {};
+			// skip the boolean and the target
+			i = 2;
+		}
+
+		// Handle case when target is a string or something (possible in deep copy)
+		if ( typeof target !== "object" && !exports.isFunction(target) ) {
+			target = {};
+		}
+
+		for ( ; i < length; i++ ) {
+			// Only deal with non-null/undefined values
+			if ( (options = arguments[ i ]) != null ) {
+				// Extend the base object
+				for ( name in options ) {
+					src = target[ name ];
+					copy = options[ name ];
+
+					// Prevent never-ending loop
+					if ( target === copy ) {
+						continue;
+					}
+
+					// Recurse if we're merging plain objects or arrays
+					if ( deep && copy && ( exports.isPlainObject(copy) || (copyIsArray = exports.isArray(copy)) ) ) {
+						if ( copyIsArray ) {
+							copyIsArray = false;
+							clone = src && exports.isArray(src) ? src : [];
+
+						} else {
+							clone = src && exports.isPlainObject(src) ? src : {};
+						}
+
+						// Never move original objects, clone them
+						target[ name ] = exports.extend( deep, clone, copy );
+
+					// Don't bring in undefined values
+					} else if ( copy !== undefined ) {
+						target[ name ] = copy;
+					}
+				}
+			}
+		}
+
+		// Return the modified object
+		return target;
+	};
+
+	return exports;
+});
+
+
+/*
+ * datetime module.
+ *
+ * strftime functionality based on:
+ *
+ * JQuery strftime plugin
+ * Version 1.0.1 (12/06/2008)
+ *
+ * No documentation at this point, sorry.
+ *
+ * Home page: http://projects.nocternity.net/jquery-strftime/
+ * Examples: http://projects.nocternity.net/jquery-strftime/demo.html
+ *
+ * Copyright (c) 2008 Emmanuel Benoît
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining
+ * a copy of this software and associated documentation files (the
+ * "Software"), to deal in the Software without restriction, including
+ * without limitation the rights to use, copy, modify, merge, publish,
+ * distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to
+ * the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+define('util/datetime',['./type'], function (type) {
+	var strftime,
+		_defaults, _useText, _finaliseObj, _dateTimeToDtObj, _objToDtObj;
+
+	_defaults = {
+		'days_short' : [ 'Sun', 'Mon' , 'Tue' , 'Wed' , 'Thu' ,
+				'Fri' , 'Sat' ] ,
+		'days_long' : [ 'Sunday' , 'Monday' , 'Tuesday' ,
+				'Wednesday' , 'Thursday' , 'Friday' ,
+				'Saturday' ] ,
+		'months_short' : [ 'Jan' , 'Feb' , 'Mar' , 'Apr' ,
+				'May' , 'Jun' , 'Jul' , 'Aug' ,
+				'Sep' , 'Oct' , 'Nov' , 'Dec' ] ,
+		'months_long' : [ 'January' , 'February' , 'March' ,
+				'April' , 'May' , 'June' , 'July' ,
+				'August' , 'September' , 'October' ,
+				'November' , 'December' ] ,
+		'format' : '%m/%d/%Y'
+	};
+
+	_useText = _defaults;
+
+	_finaliseObj = function ( _obj , _month , _dow ) {
+		_obj.a = _useText.days_short[ _dow ];
+		_obj.A = _useText.days_long[ _dow ];
+		_obj.b = _useText.months_short[ _month ];
+		_obj.B = _useText.months_long[ _month ];
+		_obj.m = _month + 1;
+
+		var _tmp;
+
+		if ( _obj.Y > 0 ) {
+			_tmp = _obj.Y.toString( );
+			if ( _tmp.length < 2 ) {
+				_tmp = '0' + _tmp;
+			} else if ( _tmp.length > 2 ) {
+				_tmp = _tmp.substring( _tmp.length - 2 );
+			}
+			_obj.y = _tmp;
+		} else {
+			_obj.y = _obj.Y;
+		}
+
+		var _check = [ 'd' , 'm' , 'H' , 'M' , 'S' ];
+		for ( var i in _check ) {
+			_tmp = _obj[ _check[ i ] ];
+			_tmp = _tmp.toString( );
+			if ( _tmp.length < 2 ) {
+				_tmp = '0' + _tmp;
+			}
+			_obj[ _check[ i ] ] = _tmp;
+		}
+
+		if (_obj.e < 10) {
+			_obj.e = ' ' + _obj.e.toString();
+		}
+
+		return _obj;
+	};
+
+	_dateTimeToDtObj = function ( dateTime , utc ) {
+		var _obj, _month, _dow;
+		if ( utc ) {
+			_obj = {
+				'H' : dateTime.getUTCHours( ) ,
+				'M' : dateTime.getUTCMinutes( ) ,
+				'S' : dateTime.getUTCSeconds( ) ,
+				'd' : dateTime.getUTCDate( ) ,
+				'e' : dateTime.getUTCDate( ),
+				'Y' : dateTime.getUTCFullYear( )
+			};
+			_month = dateTime.getUTCMonth( );
+			_dow = dateTime.getUTCDay( );
+		} else {
+			_obj = {
+				'H' : dateTime.getHours( ) ,
+				'M' : dateTime.getMinutes( ) ,
+				'S' : dateTime.getSeconds( ) ,
+				'd' : dateTime.getDate( ) ,
+				'e' : dateTime.getDate( ) ,
+				'Y' : dateTime.getFullYear( )
+			};
+			_month = dateTime.getMonth( );
+			_dow = dateTime.getDay( );
+		}
+		return _finaliseObj( _obj , _month , _dow );
+	};
+
+	_objToDtObj = function ( obj ) {
+		var _defs = {
+			'H' : 0 ,
+			'M' : 0 ,
+			'S' : 0 ,
+			'd' : 1 ,
+			'e' : 1 ,
+			'Y' : 1 ,
+			'm' : 1
+		};
+		var _dtObj = {};
+
+		for ( var i in _defs ) {
+			if ( typeof obj[ i ] != 'number' || obj[ i ] % 1 != 0 ) {
+				_dtObj[ i ] = _defs[ i ];
+			} else {
+				_dtObj[ i ] = obj[ i ];
+			}
+		}
+
+		_dtObj.m --;
+
+		var _dow;
+		if ( typeof obj.dow == 'number' && obj.dow % 1 == 0 ) {
+			_dow = obj.dow;
+		} else {
+			_dow = 0;
+		}
+
+		return _finaliseObj( _dtObj , _dtObj.m , _dow );
+	};
+
+	strftime = function ( fmt , dateTime , utc ) {
+
+		if ( fmt && typeof fmt == 'object' ) {
+			dateTime = fmt.dateTime;
+			utc = fmt.utc;
+			fmt = fmt.format;
+		}
+
+		if ( !fmt || ( typeof fmt != 'string' ) ) {
+			fmt = _useText.format;
+		}
+
+		var _dtObj;
+		if ( dateTime && ( typeof dateTime == 'object' ) ) {
+			if ( dateTime instanceof Date ) {
+				_dtObj = _dateTimeToDtObj( dateTime , utc );
+			} else {
+				_dtObj = _objToDtObj( dateTime );
+			}
+		} else {
+			_dtObj = _dateTimeToDtObj( new Date( ) , utc );
+		}
+
+		var _text = '' , _state = 0;
+		for ( var i = 0 ; i < fmt.length ; i ++ ) {
+			if ( _state == 0 ) {
+				if ( fmt.charAt(i) == '%' ) {
+					_state = 1;
+				} else {
+					_text += fmt.charAt( i );
+				}
+			} else {
+				if ( typeof _dtObj[ fmt.charAt( i ) ] != 'undefined' ) {
+					_text += _dtObj[ fmt.charAt( i ) ];
+				} else {
+					_text += '%';
+					if ( fmt.charAt( i ) != '%' ) {
+						_text += fmt.charAt( i );
+					}
+				}
+				_state = 0;
+			}
+		}
+		if ( _state == 1 ) {
+			_text += '%';
+		}
+
+		return _text;
+	};
+
+
+	strftime.setText = function ( obj ) {
+		if ( typeof obj != 'object' ) {
+			throw new Error( 'datetime.strftime.setText() : invalid parameter' );
+		}
+
+		var _count = 0;
+		for ( var i in obj ) {
+			if ( typeof _defaults[ i ] == 'undefined' ) {
+				throw new Error( 'datetime.strftime.setText() : invalid field "' + i + '"' );
+			} else if ( i == 'format' && typeof obj[ i ] != 'string' ) {
+				throw new Error( 'datetime.strftime.setText() : invalid type for the "format" field' );
+			} else if ( i != 'format' && !type.isArray(obj[i]) ) {
+				throw new Error( 'datetime.strftime.setText() : field "' + i + '" should be an array' );
+			} else if ( obj[ i ].length != _defaults[ i ].length ) {
+				throw new Error( 'datetime.strftime.setText() : field "' + i + '" has incorrect length '
+						+ obj[ i ].length + ' (should be ' + _defaults[ i ].length + ')'
+				       );
+			}
+			_count ++;
+		}
+		if ( _count != 5 ) {
+			throw new Error( 'datetime.strftime.setText() : 5 fields expected, ' + _count + ' found' );
+		}
+
+		_useText = obj;
+	};
+
+	strftime.defaults = function ( ) {
+		_useText = _defaults;
+	};
+
+	return {
+		"strftime": strftime
+	};
+});
+
+
+define('plugins/dynamic_content',['locales', 'util/datetime'], function (locales, datetime) {
+	var jQuery,
+		DYNAMIC_ELEMENTS = "mm\\:date, date, mm\\:from, from, mm\\:subject, subject, mm\\:share, share";
+
+	/**
+	 * Utility class for managing sharing service buttons (Facebook and Twitter so far).
+	 *
+	 * @param HTMLElement element The MailMojo mm:share element to create a service for.
+	 * @param Boolean useCustomContent TRUE if the contents of the share element should be used,
+	 *                                 FALSE if the default content should be used.
+	 * @constructor
+	 */
+	function ShareService (element, useCustomContent) {
+		var serviceName = element.getAttribute('on').toLowerCase();
+		if (serviceName != 'facebook' && serviceName != 'twitter') {
+			throw new Exception("Unknown share service.");
+		}
+
+		this.serviceName = serviceName;
+		this.content = null;
+
+		if (useCustomContent) {
+			element.className = 'custom';
+			this.content = $(element).contents().get();
+		}
+	}
+	/**
+	 * Returns a sharing service link button, either with custom content or our default
+	 * content with an icon for the sharing service.
+	 *
+	 * @return HTMLElement
+	 */
+	ShareService.prototype.getButton = function () {
+		var $link = jQuery('<a href="#" />');
+
+		if (this.content !== null) {
+			$link.append(this.content);
+		}
+		else if (this.serviceName == 'facebook') {
+			$link.append('<img src="http://www.facebook.com/images/connect_favicon.png" border="0" width="14" height="14" />');
+		}
+		else if (this.serviceName == 'twitter') {
+			$link.append('<img src="http://twitter-badges.s3.amazonaws.com/t_mini-a.png" border="0" width="16" height="16" />');
+		}
+
+		return $link[0];
+	};
+
+	/**
+	 * Checks if an element contains any child nodes or text nodes containing text other than
+	 * white space.
+	 *
+	 * @param HTMLElement element The element to check for emptyness.
+	 * @return Boolean TRUE if the element has no child nodes or only contains one text node
+	 *                 with only whitespace. FALSE otherwise.
+	 */
+	function isEmptyElement (element) {
+		var nodes = element.childNodes,
+			num = nodes.length;
+
+		return (num === 0 ||
+				(num == 1 && nodes[0].nodeValue && nodes[0].nodeValue.match(/^\s*$/)));
+	}
+
+	/**
+	 * Adds default placeholder content while editing for elements which will be replaced by
+	 * dynamic content before actually sending the mailing.
+	 * It also takes care to not replace custom content in <mm:share> elements with placeholder
+	 * content.
+	 * Used as a callback for jQuery.fn.each.
+	 *
+	 * @param Number i            Index among all dynamic elements.
+	 * @param HTMLElement element The dynamic element to add placeholder content for.
+	 */
+	function addDefaultContent (i, element) {
+		// Normalize element name (without namespace) to how Explorer reports it
+		var name = element.nodeName.toLowerCase().replace('mm:', ''),
+			isEmpty = isEmptyElement(element),
+			content = null;
+
+		switch (name) {
+			case 'share':
+				try {
+					content = new ShareService(element, !isEmpty).getButton();
+					// This method of copying inline styles also works in IE7
+					content.style.cssText = element.style.cssText;
+				}
+				catch (e) {}
+				break;
+
+			case 'date':
+				var
+					dateFormat = element.getAttribute('format'),
+					lang = element.getAttribute('lang') || 'no';
+
+				datetime.strftime.setText(locales[lang]);
+				content = datetime.strftime(dateFormat);
+				break;
+
+			case 'subject':
+				content = '[Emne kommer her]';
+				break;
+
+			case 'from':
+				content = '[Avsendernavn kommer her]';
+				break;
+		}
+
+		if (content) {
+			if (typeof content === 'string') {
+				content = document.createTextNode(content);
+			}
+			element.appendChild(content);
+		}
+	}
+
+	/**
+	 * Removes all default placeholder content in dynamic content elements.
+	 * Used as a callback for jQuery.fn.each before returning the complete mailing content.
+	 *
+	 * @param Number i            Index among all dynamic elements.
+	 * @param HTMLElement element The dynamic element to remove placeholder content for.
+	 */
+	function removeDefaultContent (i, element) {
+		// Normalize element name (without namespace) to how Explorer reports it
+		var name = element.nodeName.toLowerCase().replace('mm:', ''),
+			$element = jQuery(element);
+
+		switch (name) {
+			case 'share':
+				/*
+				 * For share elements with custom content, just remove the placeholder link
+				 * and leave the custom content inside the share element. Otherwise we empty
+				 * the element completely as with other default content.
+				 */
+				if ($element.hasClass('custom')) {
+					var $link = $element.children('a');
+
+					$element.append($link.contents());
+					$link.remove();
+					break;
+				}
+
+			case 'date':
+			case 'subject':
+			case 'from':
+				$element.empty();
+				break;
+		}
+	}
+
+
+	return {
+		register: function (editor) {
+			jQuery = editor.window.jQuery;
+
+			jQuery(DYNAMIC_ELEMENTS).each(addDefaultContent);
+
+			editor.on('filtercontent.editor', function (e, $content) {
+				$content
+					.find(DYNAMIC_ELEMENTS)
+						.each(removeDefaultContent);
+			});
+		}
+	};
+});
+
 define('plugins',['plugins/dynamic_content', 'plugins/editables', 'plugins/snippets',
 	   'plugins/links', 'plugins/images'],
 	function (dynamicContent, editables, snippets, links, images) {
@@ -2213,7 +2316,7 @@ define('plugins',['plugins/dynamic_content', 'plugins/editables', 'plugins/snipp
 	}
 );
 
-define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
+define('editor',['editor/pane', 'plugins', 'util/dom', 'util/type'], function (panes, plugins, dom, type) {
 	var editorIndex = 0;
 
 	function convertToIframe (textarea) {
@@ -2351,6 +2454,9 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 				$ = this.window.jQuery;
 
 			this.panes = panes.init(this.window);
+			if (typeof opts.imageUploadUrl !== "undefined") {
+				this.panes.setEditorOption("filebrowserImageUploadUrl", opts.imageUploadUrl);
+			}
 
 			// TODO: Move to separate init method or similar?
 			this.ui.buttons = {
@@ -2640,14 +2746,11 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 		 *
 		 *                       'ckeditor': URI to CKEditor library,
 		 *                       'jquery': URI to jQuery library.
-		 *                       'onchange': Callback after changes made by the user using
-		 *                                   the content editor.
+		 *                       'imageUploadUrl': URI to support uploading images to.
 		 * @returns ContentEditor
 		 */
 		init: function (el, opts) {
-			// TODO: Support merging
-			opts = opts || defaults;
-			opts.root = url;
+			opts = type.extend({ root: url }, defaults, opts);
 
 			if (el.nodeName.toLowerCase() == 'textarea') {
 				el = convertToIframe(el);
