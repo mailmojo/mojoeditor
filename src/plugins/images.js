@@ -20,10 +20,10 @@ define(['../util/dom'], function (dom) {
 	 *
 	 * @param Event e
 	 */
-	ImagesManager.prototype.editImage = function (e) {
+	ImagesManager.prototype.editImage = function (e, image) {
 		var
 			self = this,
-			$img = $(e.target),
+			$img = $(image || e.target),
 			$parent = $img.parent(),
 			isLink = $parent.is('a'),
 			original = (isLink ? $parent : $img)[0],
@@ -375,10 +375,10 @@ define(['../util/dom'], function (dom) {
 			.data('relatedImage', image)
 			.css(style)
 			.insertAfter(image)
-			.click(function (e) {
-				editImage.call(image, e);
-				hideImageEditIcon();
-			});
+			.click($.proxy(function (e) {
+				this.editImage(e, image);
+				this.hideImageEditIcon();
+			}, this));
 	};
 
 	/**
