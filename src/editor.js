@@ -34,9 +34,9 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 		textarea.style.display = 'none';
 		textarea.parentNode.insertBefore(iframe, textarea);
 
-		iframe.contentDocument.open();
-		iframe.contentDocument.write(htmlContent);
-		iframe.contentDocument.close();
+		iframe.contentWindow.document.open();
+		iframe.contentWindow.document.write(htmlContent);
+		iframe.contentWindow.document.close();
 
 		return iframe;
 	}
@@ -98,7 +98,7 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 		function loadDependencies (callback) {
 			// TODO: Make sure every browser implicitly creates a head element if it's missing
 			var self = this,
-				header = this.iframe.contentDocument.getElementsByTagName('head').item(0),
+				header = this.iframe.contentWindow.document.getElementsByTagName('head').item(0),
 				numDependencies = 2;
 
 			function onload (dependency) {
@@ -147,8 +147,8 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 			 * Since internet explorer does not have an importNode function
 			 * we create one for it instead.
 			 */
-			if (typeof this.iframe.contentDocument.importNode == 'undefined') {
-				dom.assignCustomImportNode(this.iframe.contentDocument);
+			if (typeof this.iframe.contentWindow.document.importNode == 'undefined') {
+				dom.assignCustomImportNode(this.iframe.contentWindow.document);
 			}
 
 			// Prevents the user from "leaving" the content editor.

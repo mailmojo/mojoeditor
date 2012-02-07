@@ -42,7 +42,7 @@ define(['../util/dom'], function (dom) {
 			 * The edited element is owned by the CKEditor document, so we need to import
 			 * it into our content editor document for using it further.
 			 */
-			self.updateLink(original, document.importNode(link.$, true));
+			self.updateLink(original, self.editor.window.document.importNode(link.$, true));
 		}
 
 		/**

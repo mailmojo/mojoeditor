@@ -352,474 +352,6 @@ define('editor/ckeditor_config',{
 	customConfig: ''
 });
 
-/**
- * Encapsulation of static interface/factory and class for EditorPane objects which manages
- * panes with WYSIWYG editors that can have different configurations (i.e. toolbars).
- */
-define('editor/pane',['./ckeditor_config'], function (editorConfig) {
-
-	function init (window) {
-		var
-			CKEDITOR = window.CKEDITOR,
-			document = window.document,
-			$ = window.jQuery,
-			/**
-			 * Cache of different editor pane types for reuse.
-			 * @var Object
-			 */
-			instances = {},
-			/**
-			 * Reference to currently open editor pane.
-			 * @var EditorPane
-			 */
-			current = null,
-			/**
-			 * Global editor pane mode. Currently only 'single' is supported, meaning only
-			 * one editor pane will be shown. Any open editor pane will be closed when another
-			 * is shown.
-			 * @var String
-			 */
-			mode = 'single',
-			/**
-			 * Configuration extensions/overrides for specific editor pane types.
-			 * @var Object
-			 */
-			configs = {
-				'Block': {
-					toolbar: 'Content',
-					enterMode: CKEDITOR.ENTER_P,
-					height: '380px'
-				},
-				'Inline': {
-					toolbar: 'Inline',
-					enterMode: CKEDITOR.ENTER_BR,
-					shiftEnterMode: CKEDITOR.ENTER_BR,
-					height: '350px',
-					// Removes the 'Lorem ipsum...' text from img preview box
-					image_previewText: '&nbsp;'
-				}
-			};
-
-		/**
-		 * Handles every getData call to a CKEditor instance for fetching the current data, and
-		 * enables filtering the HTML it returns.
-		 * Currently it is very simple and only normalizes output from editors for inline content,
-		 * avoiding a wrapping <p> element for inline editables (<p editable>, <span editable> etc).
-		 * in Internet Explorer. Wrapping inline content in a <p> causes problems when injected into
-		 * editable <p> elements, where Explorer will subsequently unwrap the inner <p> into it's own
-		 * following <p>, rendering the editable <p> empty.
-		 *
-		 * When/if a lot more filters are necessary or useful this should be extracted to a
-		 * separate filtering object.
-		 *
-		 * @param CKEditor.event e The event describing the getData call, containing which editor
-		 *                         it relates to and the current data value.
-		 */
-		function filterEditorData (e) {
-			var
-				editor = e.editor,
-				data = e.data;
-
-			if (editor.config.enterMode == CKEDITOR.ENTER_BR) {
-				data.dataValue = data.dataValue.replace(/^\s*<p>\s*([\s\S]+?)\s*<\/p>\s*$/i, '$1');
-			}
-		}
-
-		/*
-		 * Hides unnecessary contents from the content editor dialogs.
-		 *
-		 * All these id's are located in /js/lib/ckeditor/<plugin>/dialogs/<something>.js
-		 * and must be digged out from wihtin that GUI js file.
-		 * Look for signs like: {id:'cmbAlign',type: ....  where cmbAlign is the name of the
-		 * property you are after.
-		 */
-		CKEDITOR.on('dialogDefinition', function (e) {
-			var dialogName = e.data.name,
-				dialogDefinition = e.data.definition,
-				infoTab;
-
-			if (dialogName == 'link') {
-				dialogDefinition.removeContents('target');
-				// Get a reference to the 'Advanced' tab.
-				var advancedTab = dialogDefinition.getContents('advanced');
-				$.each(['advId', 'advAccessKey', 'advTabIndex',
-						'advName', 'advLangDir', 'advLangCode',
-						'advCharset', 'advContentType'],
-						function (i, field) {
-					advancedTab.remove(field);
-				});
-			}
-			else if (dialogName == 'image') {
-				// Get a reference to the 'Info' tab.
-				infoTab = dialogDefinition.getContents('info');
-				infoTab.remove('txtBorder');
-				infoTab.remove('txtHSpace');
-				infoTab.remove('txtVSpace');
-			}
-			else if (dialogName == 'table') {
-				// Table plugin has an invisible "tab" called info.
-				infoTab = dialogDefinition.getContents('info');
-				infoTab.remove('cmbAlign');
-			}
-		});
-
-		/**
-		 * Constructor for EditorPane instances. Creates the necessary DOM nodes and initializes
-		 * a CKEditor WYSIWYG editor with appropriate configurations.
-		 * @private
-		 */
-		var EditorPane = function (type, opts) {
-			var self = this,
-				$pane =
-					$('<div class="mm-editor" />')
-						.append('<div class="mm-editor-content" />')
-						.append('<button type="submit" class="save">Lagre</button>')
-						.append(' eller ')
-						.append('<button type="button" class="cancel">avbryt</button>')
-						// Hide without setting 'display: none', see the EditorPane.hide() method
-						.css({
-							position: 'absolute',
-							top: '0px',
-							left: '-1000px',
-							// TODO: Dynamic width
-							width: 600,
-							zIndex: 9000
-						})
-						.prependTo(document.body);
-
-			opts = $.extend({}, opts);
-
-			// Hook up any event handlers for save/cancel events
-			if (typeof opts.save == 'function') {
-				$pane.bind('EditorPane.save', opts.save);
-			}
-			if (typeof opts.cancel == 'function') {
-				$pane.bind('EditorPane.cancel', opts.cancel);
-			}
-
-			this.type = type;
-			this.pane = $pane[0];
-			// Create and store a reference to the WYSIWYG editor for this pane
-			this.editor = CKEDITOR.appendTo(
-				$pane.find('div.mm-editor-content')[0],
-				$.extend({}, editorConfig, configs[type], {
-					// Event handlers, in the order they will be called
-					on: {
-						pluginsLoaded: function (e) {
-							if (typeof opts.loaded == 'function') {
-								opts.loaded.call(self);
-							}
-						},
-						instanceCreated: function () { },
-						instanceReady: function (e) {
-							if (typeof opts.ready == 'function') {
-								opts.ready.call(self);
-							}
-						},
-						getData: filterEditorData
-					}
-				})
-			);
-			// Hook up event handler for clicks on save/cancel action buttons
-			$pane.find('button').click(function (originalEvent) {
-				var type = $(this).is('.save') ? 'save' : 'cancel',
-					e = new $.Event('EditorPane.' + type);
-	
-				$pane.trigger(e, [self]);
-				if (!e.isDefaultPrevented()) {
-					self.hide();
-				}
-			});
-		};
-
-		EditorPane.prototype = {
-			/**
-			 * Set the editor's related element which the WYSIWYG editor's contents will be
-			 * fetched from.
-			 *
-			 * @param HTMLElement | jQuery element The element to edit in the WYSIWYG editor.
-			 * @return EditorPane Reference to this instance.
-			 */
-			setElement: function (element) {
-				this.element = $(element);
-				this.editor.setData(this.element.html());
-	
-				return this;
-			},
-			/**
-			 * Returns the related element currently used in the WYSIWYG editor.
-			 *
-			 * @return HTMLElement
-			 */
-			getElement: function () {
-				return (this.element && this.element[0]) || null;
-			},
-			/**
-			 * Returns the type of this EditorPane.
-			 *
-			 * @return String
-			 */
-			getType: function () {
-				return this.type;
-			},
-			/**
-			 * Displays the editor pane, hiding any other open editor pane when in 'single' mode.
-			 * Editor panes are techincally always displayed, just out of view. So to display in
-			 * view we first hide it, and then slide it down in view.
-			 *
-			 * @return EditorPane Reference to this instance.
-			 */
-			show: function () {
-				var self = this;
-
-
-				if (mode == 'single' && current !== null) {
-					if (this.type != current.getType()) {
-						current.hide();
-					}
-				}
-
-				adjustPosition(this.pane);
-
-				$(this.pane).hide().css('left', '0px').slideDown(150, function () {
-					// Expand editor to fit all text, has to be done when pane is visible
-					setTimeout(function () {
-						adjustSize(self.editor);
-						self.editor.focus();
-						current = self;
-					}, 10);
-				});
-				return this;
-			},
-			/**
-			 * Shows a dialog of the specified type in the editor, optionally with an element
-			 * as the current selection for the dialog. Also takes care of loading the dialog if
-			 * necessary, and a callback can be provided to be notified when the dialog has been
-			 * loaded and shown.
-			 *
-			 * TODO: Investigate if this is easy to turn into a CKEditor plugin. Currently this
-			 * method replicates most of the openDialog() method of the existing dialog plugin
-			 * because it doesn't provide any means of being notified when the dialog is actually
-			 * ready to use.
-			 *
-			 * @param String type        The name of the dialog type to show.
-			 * @param DOMElement element Optional element to use as current selection in the editor.
-			 * @param Function callback  Optional function to call when the dialog is shown.
-			 */
-			showDialog: function (type, element, callback) {
-				var self = this;
-
-				if (CKEDITOR.dialog.getCurrent() !== null) {
-					return false;
-				}
-
-				// Assume callback when element is a function
-				if (typeof element === 'function') {
-					callback = element;
-				}
-
-				// Assume element when type is an object and use default type
-				if (typeof type === 'object') {
-					element = type;
-					type = 'image';
-				}
-
-				/**
-				 * Tries to find the first element with an editable attribute inside
-				 * a source element. If the source element itself has an editable
-				 * attribute the search is short circuited and the source element is
-				 * returned directly. The source element is also returned if no
-				 * element with an editable attribute is found.
-				 *
-				 * @param CKEDITOR.dom.element sourceElement The element to search within.
-				 * @return CKEDITOR.dom.element
-				 */
-				function findEditableElement (sourceElement) {
-					if (sourceElement.hasAttribute('editable')) {
-						return sourceElement;
-					}
-	
-					var children = sourceElement.getChildren(),
-						child, index;
-	
-					for (index = 0; index < children.count(); index++) {
-						child = children.getItem(index);
-						if (child.hasAttribute('editable') ||
-								(child = findEditableElement(child) && child.hasAttribute('editable'))) {
-							return child;
-						}
-					}
-
-					return sourceElement;
-				}
-
-				/**
-				 * Imports an element into the CKEditor DOM document and selects it for
-				 * editing by the CKEditor dialog being opened.
-				 *
-				 * @param HTMLElement element Element to be imported and selected.
-				 */
-				function selectElement (element) {
-					var
-						sel = null, clone = null,
-						doc = this.editor.document.$,
-						elementNew;
-
-					// Give focus to the editor to make Internet Explorer properly handle new selections
-					this.editor.focus();
-
-					/*
-					 * We assign the custom importNode function here if it does not
-					 * exists, because CKEditor adds new document instance sometimes.
-					 *
-					 * TODO: Figure out a way to get the custom importNode automatically
-					 *       added on every new document instance.
-					 */
-					if (typeof doc.importNode == 'undefined') {
-						assignCustomImportNode(doc);
-					}
-	
-					clone = doc.importNode(element, true);
-
-					// Clear the contents of the editor to avoid any leftover editables building up
-					doc.body.innerHTML = '';
-					// Add cloned image to the editor document and select it for editing
-					doc.body.appendChild(clone);
-
-					// For Explorer we most likely need to create a new selection
-					if (null === (sel = this.editor.getSelection())) {
-						sel = new CKEDITOR.dom.selection(this.editor.document);
-					}
-
-					sel.selectElement(findEditableElement(new CKEDITOR.dom.element(clone)));
-				}
-
-				/**
-				 * Inject the element into the editor and select it before we even try to open the
-				 * dialog. This fixes a selection bug in Internet Explorer 9 which prevented the dialog
-				 * from fetching the selected element.
-				 */
-				if (element) {
-					selectElement.call(self, element);
-				}
-
-				this.editor.openDialog(type, function (dialog) {
-					if (typeof callback === 'function') {
-						callback.call(self, dialog);
-					}
-				});
-			},
-			/**
-			 * Hides the editor pane. This simply means sliding it up, then moving it out of view
-			 * and redisplaying it there. By letting the editor pane be displayed, we fix problems
-			 * with editor window height and selections (in Firefox).
-			 *
-			 * @return EditorPane Reference to this instance.
-			 */
-			hide: function () {
-				var type = this.type;
-				$(this.pane).slideUp(150, function () {
-					$(this).css('left', '-1000px').show();
-					if (current && type == current.getType()) {
-						current = null;
-					}
-				});
-				return this;
-			}
-		};
-
-		/**
-		 * Sticks the current editor pane's position to the top, so that scrolling will not
-		 * hide the pane.
-		 *
-		 * @param DOMElement | jQuery pane The actual pane element to adjust position of.
-		 */
-		function adjustPosition (pane) {
-			if (pane) {
-				$(pane).css({position: 'fixed', top: 0});
-			}
-		}
-		$(window).scroll(function () {
-			adjustPosition(current && current.pane);
-		});
-
-		/**
-		 * Adjusts the height of an editor to try fitting all text inside the editor area
-		 * and avoid scrollbars.
-		 *
-		 * @param CKEditor editor The editor instance to adjust height of.
-		 */
-		function adjustSize (editor) {
-			if (typeof editor.window == "undefined") {
-				setTimeout(function () {
-					adjustSize(editor);
-				}, 100);
-				return;
-			}
-
-			var
-				editorContainer = editor.container.$,
-				editorWindow = editor.window.$,
-				windowHeight = editorWindow.innerHeight || 0,
-				documentHeight = editorWindow.document.height || 0,
-				containerHeight = editorContainer.offsetHeight || 0,
-				diff = documentHeight - windowHeight;
-
-			if (diff > 0) {
-				editor.resize(
-					editorConfig.resize_maxWidth,
-					Math.max(
-						editorConfig.resize_minHeight,
-						Math.min(containerHeight + diff, editorConfig.resize_maxHeight))
-				);
-			}
-		}
-		
-		/**
-		 * Static interface for editor panes. Provides public methods for creating/getting
-		 * editor pane instances.
-		 */
-		return {
-			/**
-			 * Returns an EditorPane of a specific type. If a pane of this type has been created
-			 * earlier, the existing instance is returned. Otherwise a new instance is created.
-			 *
-			 * @param String type Type of the EditorPane, currently either 'Block' or 'Inline' is
-			 *                    supported.
-			 * @param Object opts Extra options for the editorpane which is used when creating a
-			 *                    new instance.
-			 * @return EditorPane
-			 */
-			getInstance: function (type, opts) {
-				if (instances[type]) {
-					if (typeof opts.loaded == 'function') {
-						opts.loaded.call(instances[type]);
-					}
-					if (typeof opts.ready == 'function') {
-						opts.ready.call(instances[type]);
-					}
-				}
-				else {
-					instances[type] = new EditorPane(type, opts);
-				}
-				return instances[type];
-			},
-			/**
-			 * Return the currently open EditorPane, if any.
-			 *
-			 * @return EditorPane
-			 */
-			getCurrent: function () {
-				return current;
-			}
-		};
-	}
-
-	return {
-		"init": init
-	};
-});
-
 define('locales',{
 	'no': {
 		'days_short': ['søn', 'man', 'tir', 'ons', 'tor', 'fre', 'lør'],
@@ -914,7 +446,7 @@ define('util/datetime',[],function () {
 	type = function( obj ) {
 		return obj === null ?
 			String( obj ) :
-			class2type[ toString.call(obj) ] || "object";
+			class2type[ Object.prototype.toString.call(obj) ] || "object";
 	};
 	isArray = Array.isArray || function( obj ) {
 		return type(obj) === "array";
@@ -1298,13 +830,7 @@ define('plugins/editables',[],function () {
 		 * Internet Explorer does not support namespaces, so match without namespace for it.
 		 * @var Array
 		 */
-		BLOCK_ELEMENTS = ['mm:content'], //$.support.namespaces ? ['mm:content'] : ['content'],
-		/**
-		 * HTML for creating an image with the edit icon.
-		 * @var String
-		 */
-		editIconHtml = '<img src="' + 'http://static.mailmojo' +
-				'/img/icons/edit.png" alt="Rediger" />';
+		BLOCK_ELEMENTS = ['mm:content']; //$.support.namespaces ? ['mm:content'] : ['content'],
 
 	/**
 	 * Determines if an element is one of the block editable elements.
@@ -1376,13 +902,136 @@ define('plugins/editables',[],function () {
 	};
 });
 
-define('plugins',['plugins/dynamic_content', 'plugins/editables'],
-	function (dynamicContent, editables) {
-		return [
-			dynamicContent, editables
-		];
+define('plugins/snippets',[],function () {
+	var $, SnippetsManager;
+
+	SnippetsManager = function (editor) {
+		var remover = $.proxy(this.remove, this),
+			duplicater = $.proxy(this.duplicate, this);
+
+		this.editor = editor;
+
+		$('mm\\:snippet, snippet')
+			.each(function () {
+				var $this = $(this),
+					$prev = $this.prev(),
+					isSingle = !$this.hasClass('mm-duplicated') && !$prev.hasClass('mm-duplicated');
+
+				$this.append(editor.ui.buttons.remove.clone())
+					.find('span.mm-remove')
+						.css('display', isSingle ? 'none' : '')
+						.click(remover);
+			})
+			.filter(':not(.mm-duplicated)')
+				.append(editor.ui.buttons.add)
+					.find('button.add')
+						.click(duplicater);
+	};
+
+	/**
+	 * Performs a duplication of an mm:snippet element with it's HTML content, while keeping
+	 * the GUI for further duplication to the last mm:snippet among it's siblings.
+	 *
+	 * @param Event e
+	 */
+	SnippetsManager.prototype.duplicate = function (e) {
+		var $snippet = $(e.target).parent().parent(),
+			$clone = null;
+
+		// If a dialog is open, clicking on the snippet-duplicate button won't trigger anything.
+		if (this.editor.getCurrentEditorPane() !== null) {
+			return false;
+		}
+
+		// Make sure removal button is shown before duplicating
+		$snippet.find('span.mm-remove').show();
+		$clone = $snippet.clone(true);
+
+		$snippet
+			// Mark as cloned to prevent add button being appended to the snippet again
+			.addClass('mm-duplicated')
+			// Remove current add button from snippet
+			.find('div.mm-add')
+				.remove()
+				.end()
+			// Add cloned snippet with add button as the next sibling
+			.after($clone);
+
+		this.editor.trigger('contentchanged.editor');
 	}
-);
+
+	/**
+	 * Removes a mm:snippet element and updates the sibling snippets. It also hides the
+	 * removal button if there's only one snippet left of the same kind, to prevent every
+	 * mm:snippet from being removed.
+	 *
+	 * @param Event e
+	 */
+	SnippetsManager.prototype.remove = function (e) {
+		var
+			// Actual mm:snippet element
+			$snippet = $(e.target).closest('.mm-remove').parent(),
+			// Previous mm:snippet element, if any
+			$previous = $snippet.prev(),
+			// Has current snippet been duplicated to create a new snippet?
+			isDuplicated = $snippet.hasClass('mm-duplicated'),
+			shouldRemove = false;
+
+		// If a dialog is open, clicking on the snippet-remove button won't trigger anything.
+		if (this.editor.getCurrentEditorPane() !== null) {
+			return false;
+		}
+
+		// Duplicated snippets are never the last one, always remove
+		if (isDuplicated) {
+			shouldRemove = true;
+		}
+		/*
+		 * Non-duplicated snippets must have a duplicated snippet as it's previous
+		 * sibling (meaning it's not the only one left) to be removed, and needs to have
+		 * it's duplicate GUI moved to previous snippet first.
+		 */
+		else if ($previous.hasClass('mm-duplicated')) {
+			$previous.append($snippet.find('div.mm-add')).removeClass('mm-duplicated');
+			shouldRemove = true;
+		}
+
+		if (shouldRemove === true) {
+			var $next = $snippet.next();
+
+			/*
+			 * If snippet is duplicated, there's no previous duplicated snippet sibling
+			 * and the next snippet is the last one (not duplicated) we need to hide the
+			 * removal button of the next snippet.
+			 */
+			if (isDuplicated &&
+					!$previous.hasClass('mm-duplicated') &&
+					!$next.hasClass('mm-duplicated')) {
+				$next.find('span.mm-remove').hide();
+			}
+			/*
+			 * If snippet to remove is not a duplicated snippet, and neither of it's two
+			 * previous siblings are duplicated snippets it means the immediate previous sibling
+			 * will be the last snippet of this kind, and should thus have no removal button.
+			 */
+			else if (!isDuplicated &&
+					 !$previous.hasClass('mm-duplicated') &&
+					 !$previous.prev().hasClass('mm-duplicated')) {
+				$previous.find('span.mm-remove').hide();
+			}
+
+			$snippet.remove();
+			this.editor.trigger('contentchanged.editor');
+		}
+	}
+
+	return {
+		register: function (editor) {
+			$ = editor.window.jQuery;
+			new SnippetsManager(editor);
+		}
+	};
+});
 
 define('util/dom',[],function () {
 
@@ -1480,7 +1129,8 @@ define('util/dom',[],function () {
 		 */
 		updateAttribute: function (el, name, value) {
 			if (value && value !== "") {
-				$(el).attr(name, value);
+				//$(el).attr(name, value);
+				el.setAttribute(name, value);
 			}
 			else {
 				// IE7 does not support removal of class attribute, so empty string as fallback
@@ -1515,6 +1165,1054 @@ define('util/dom',[],function () {
 		}
 	};
 });
+
+/**
+ * Encapsulation of static interface/factory and class for EditorPane objects which manages
+ * panes with WYSIWYG editors that can have different configurations (i.e. toolbars).
+ */
+define('editor/pane',['./ckeditor_config', '../util/dom'], function (editorConfig, dom) {
+
+	function init (window) {
+		var
+			CKEDITOR = window.CKEDITOR,
+			document = window.document,
+			$ = window.jQuery,
+			/**
+			 * Cache of different editor pane types for reuse.
+			 * @var Object
+			 */
+			instances = {},
+			/**
+			 * Reference to currently open editor pane.
+			 * @var EditorPane
+			 */
+			current = null,
+			/**
+			 * Global editor pane mode. Currently only 'single' is supported, meaning only
+			 * one editor pane will be shown. Any open editor pane will be closed when another
+			 * is shown.
+			 * @var String
+			 */
+			mode = 'single',
+			/**
+			 * Configuration extensions/overrides for specific editor pane types.
+			 * @var Object
+			 */
+			configs = {
+				'Block': {
+					toolbar: 'Content',
+					enterMode: CKEDITOR.ENTER_P,
+					height: '380px'
+				},
+				'Inline': {
+					toolbar: 'Inline',
+					enterMode: CKEDITOR.ENTER_BR,
+					shiftEnterMode: CKEDITOR.ENTER_BR,
+					height: '350px',
+					// Removes the 'Lorem ipsum...' text from img preview box
+					image_previewText: '&nbsp;'
+				}
+			};
+
+		/**
+		 * Handles every getData call to a CKEditor instance for fetching the current data, and
+		 * enables filtering the HTML it returns.
+		 * Currently it is very simple and only normalizes output from editors for inline content,
+		 * avoiding a wrapping <p> element for inline editables (<p editable>, <span editable> etc).
+		 * in Internet Explorer. Wrapping inline content in a <p> causes problems when injected into
+		 * editable <p> elements, where Explorer will subsequently unwrap the inner <p> into it's own
+		 * following <p>, rendering the editable <p> empty.
+		 *
+		 * When/if a lot more filters are necessary or useful this should be extracted to a
+		 * separate filtering object.
+		 *
+		 * @param CKEditor.event e The event describing the getData call, containing which editor
+		 *                         it relates to and the current data value.
+		 */
+		function filterEditorData (e) {
+			var
+				editor = e.editor,
+				data = e.data;
+
+			if (editor.config.enterMode == CKEDITOR.ENTER_BR) {
+				data.dataValue = data.dataValue.replace(/^\s*<p>\s*([\s\S]+?)\s*<\/p>\s*$/i, '$1');
+			}
+		}
+
+		/*
+		 * Hides unnecessary contents from the content editor dialogs.
+		 *
+		 * All these id's are located in /js/lib/ckeditor/<plugin>/dialogs/<something>.js
+		 * and must be digged out from wihtin that GUI js file.
+		 * Look for signs like: {id:'cmbAlign',type: ....  where cmbAlign is the name of the
+		 * property you are after.
+		 */
+		CKEDITOR.on('dialogDefinition', function (e) {
+			var dialogName = e.data.name,
+				dialogDefinition = e.data.definition,
+				infoTab;
+
+			if (dialogName == 'link') {
+				dialogDefinition.removeContents('target');
+				// Get a reference to the 'Advanced' tab.
+				var advancedTab = dialogDefinition.getContents('advanced');
+				$.each(['advId', 'advAccessKey', 'advTabIndex',
+						'advName', 'advLangDir', 'advLangCode',
+						'advCharset', 'advContentType'],
+						function (i, field) {
+					advancedTab.remove(field);
+				});
+			}
+			else if (dialogName == 'image') {
+				// Get a reference to the 'Info' tab.
+				infoTab = dialogDefinition.getContents('info');
+				infoTab.remove('txtBorder');
+				infoTab.remove('txtHSpace');
+				infoTab.remove('txtVSpace');
+			}
+			else if (dialogName == 'table') {
+				// Table plugin has an invisible "tab" called info.
+				infoTab = dialogDefinition.getContents('info');
+				infoTab.remove('cmbAlign');
+			}
+		});
+
+		/**
+		 * Constructor for EditorPane instances. Creates the necessary DOM nodes and initializes
+		 * a CKEditor WYSIWYG editor with appropriate configurations.
+		 * @private
+		 */
+		var EditorPane = function (type, opts) {
+			var self = this,
+				$pane =
+					$('<div class="mm-editor" />')
+						.append('<div class="mm-editor-content" />')
+						.append('<button type="submit" class="save">Lagre</button>')
+						.append(' eller ')
+						.append('<button type="button" class="cancel">avbryt</button>')
+						// Hide without setting 'display: none', see the EditorPane.hide() method
+						.css({
+							position: 'absolute',
+							top: '0px',
+							left: '-1000px',
+							// TODO: Dynamic width
+							width: 600,
+							zIndex: 9000
+						})
+						.prependTo(document.body);
+
+			opts = $.extend({}, opts);
+
+			// Hook up any event handlers for save/cancel events
+			if (typeof opts.save == 'function') {
+				$pane.bind('EditorPane.save', opts.save);
+			}
+			if (typeof opts.cancel == 'function') {
+				$pane.bind('EditorPane.cancel', opts.cancel);
+			}
+
+			this.type = type;
+			this.pane = $pane[0];
+			// Create and store a reference to the WYSIWYG editor for this pane
+			this.editor = CKEDITOR.appendTo(
+				$pane.find('div.mm-editor-content')[0],
+				$.extend({}, editorConfig, configs[type], {
+					// Event handlers, in the order they will be called
+					on: {
+						pluginsLoaded: function (e) {
+							if (typeof opts.loaded == 'function') {
+								opts.loaded.call(self);
+							}
+						},
+						instanceCreated: function () { },
+						instanceReady: function (e) {
+							if (typeof opts.ready == 'function') {
+								opts.ready.call(self);
+							}
+						},
+						getData: filterEditorData
+					}
+				})
+			);
+			// Hook up event handler for clicks on save/cancel action buttons
+			$pane.find('button').click(function (originalEvent) {
+				var type = $(this).is('.save') ? 'save' : 'cancel',
+					e = new $.Event('EditorPane.' + type);
+	
+				$pane.trigger(e, [self]);
+				if (!e.isDefaultPrevented()) {
+					self.hide();
+				}
+			});
+		};
+
+		EditorPane.prototype = {
+			/**
+			 * Set the editor's related element which the WYSIWYG editor's contents will be
+			 * fetched from.
+			 *
+			 * @param HTMLElement | jQuery element The element to edit in the WYSIWYG editor.
+			 * @return EditorPane Reference to this instance.
+			 */
+			setElement: function (element) {
+				this.element = $(element);
+				this.editor.setData(this.element.html());
+	
+				return this;
+			},
+			/**
+			 * Returns the related element currently used in the WYSIWYG editor.
+			 *
+			 * @return HTMLElement
+			 */
+			getElement: function () {
+				return (this.element && this.element[0]) || null;
+			},
+			/**
+			 * Internal abstraction around the 'getSelectedElement' method of a dialog to fix problems
+			 * with empty selections in Internet Explorer. This simply tries to get the selected element
+			 * of the dialog, but if the selection is empty it creates a new selection with the first element
+			 * of the specified type selected, and then returns this element.
+			 *
+			 * @scope CKEditor.dialog
+			 */
+			getSelectedElement: function (elementType) {
+				var
+					/**
+					 * @var CKEDITOR.dom.document
+					 */
+					doc = this.getParentEditor().document,
+					/**
+					 * @var CKEDITOR.dom.selection
+					 */
+					selection = this.getParentEditor().getSelection(),
+					/**
+					 * @var CKEDITOR.dom.element
+					 */
+					element;
+
+				/*
+				 * This is a work around for browsers (Internet Explorer) where the selection is lost when
+				 * clicking "OK" in a dialog. In these cases we simply search for the first element of the type
+				 * we are interested in within the editor and create a new selection with it. Since this is within
+				 * the CKEditor document this will always be the only element of the type, being the element we injected
+				 * into the CKEditor document when we initialized the dialog.
+				 */
+				if (selection === null) {
+					selection = new CKEDITOR.dom.selection(doc);
+					selection.selectElement(doc.getElementsByTag(elementType).getItem(0));
+				}
+
+				/*
+				 * In some cases, like with link elements, we need to fetch the selection start element to
+				 * get the element properly in WebKit. But this is synonymous with getting the selected
+				 * element of a single element selection and works fine in Firefox etc. as well.
+				 */
+				return selection.getSelectedElement() || selection.getStartElement();
+			},
+			/**
+			 * Returns the type of this EditorPane.
+			 *
+			 * @return String
+			 */
+			getType: function () {
+				return this.type;
+			},
+			/**
+			 * Displays the editor pane, hiding any other open editor pane when in 'single' mode.
+			 * Editor panes are techincally always displayed, just out of view. So to display in
+			 * view we first hide it, and then slide it down in view.
+			 *
+			 * @return EditorPane Reference to this instance.
+			 */
+			show: function () {
+				var self = this;
+
+
+				if (mode == 'single' && current !== null) {
+					if (this.type != current.getType()) {
+						current.hide();
+					}
+				}
+
+				adjustPosition(this.pane);
+
+				$(this.pane).hide().css('left', '0px').slideDown(150, function () {
+					// Expand editor to fit all text, has to be done when pane is visible
+					setTimeout(function () {
+						adjustSize(self.editor);
+						self.editor.focus();
+						current = self;
+					}, 10);
+				});
+				return this;
+			},
+			/**
+			 * Shows a dialog of the specified type in the editor, optionally with an element
+			 * as the current selection for the dialog. Also takes care of loading the dialog if
+			 * necessary, and a callback can be provided to be notified when the dialog has been
+			 * loaded and shown.
+			 *
+			 * TODO: Investigate if this is easy to turn into a CKEditor plugin. Currently this
+			 * method replicates most of the openDialog() method of the existing dialog plugin
+			 * because it doesn't provide any means of being notified when the dialog is actually
+			 * ready to use.
+			 *
+			 * @param String type        The name of the dialog type to show.
+			 * @param DOMElement element Optional element to use as current selection in the editor.
+			 * @param Function callback  Optional function to call when the dialog is shown.
+			 */
+			showDialog: function (type, element, callback) {
+				var self = this;
+
+				if (CKEDITOR.dialog.getCurrent() !== null) {
+					return false;
+				}
+
+				// Assume callback when element is a function
+				if (typeof element === 'function') {
+					callback = element;
+				}
+
+				// Assume element when type is an object and use default type
+				if (typeof type === 'object') {
+					element = type;
+					type = 'image';
+				}
+
+				/**
+				 * Tries to find the first element with an editable attribute inside
+				 * a source element. If the source element itself has an editable
+				 * attribute the search is short circuited and the source element is
+				 * returned directly. The source element is also returned if no
+				 * element with an editable attribute is found.
+				 *
+				 * @param CKEDITOR.dom.element sourceElement The element to search within.
+				 * @return CKEDITOR.dom.element
+				 */
+				function findEditableElement (sourceElement) {
+					if (sourceElement.hasAttribute('editable')) {
+						return sourceElement;
+					}
+	
+					var children = sourceElement.getChildren(),
+						child, index;
+	
+					for (index = 0; index < children.count(); index++) {
+						child = children.getItem(index);
+						if (child.hasAttribute('editable') ||
+								(child = findEditableElement(child) && child.hasAttribute('editable'))) {
+							return child;
+						}
+					}
+
+					return sourceElement;
+				}
+
+				/**
+				 * Imports an element into the CKEditor DOM document and selects it for
+				 * editing by the CKEditor dialog being opened.
+				 *
+				 * @param HTMLElement element Element to be imported and selected.
+				 */
+				function selectElement (element) {
+					var
+						sel = null, clone = null,
+						doc = this.editor.document.$,
+						elementNew;
+
+					// Give focus to the editor to make Internet Explorer properly handle new selections
+					this.editor.focus();
+
+					/*
+					 * We assign the custom importNode function here if it does not
+					 * exists, because CKEditor adds new document instance sometimes.
+					 *
+					 * TODO: Figure out a way to get the custom importNode automatically
+					 *       added on every new document instance.
+					 */
+					if (typeof doc.importNode == 'undefined') {
+						dom.assignCustomImportNode(doc);
+					}
+	
+					clone = doc.importNode(element, true);
+
+					// Clear the contents of the editor to avoid any leftover editables building up
+					doc.body.innerHTML = '';
+					// Add cloned image to the editor document and select it for editing
+					doc.body.appendChild(clone);
+
+					// For Explorer we most likely need to create a new selection
+					if (null === (sel = this.editor.getSelection())) {
+						sel = new CKEDITOR.dom.selection(this.editor.document);
+					}
+
+					sel.selectElement(findEditableElement(new CKEDITOR.dom.element(clone)));
+				}
+
+				/**
+				 * Inject the element into the editor and select it before we even try to open the
+				 * dialog. This fixes a selection bug in Internet Explorer 9 which prevented the dialog
+				 * from fetching the selected element.
+				 */
+				if (element) {
+					selectElement.call(self, element);
+				}
+
+				this.editor.openDialog(type, function (dialog) {
+					if (typeof callback === 'function') {
+						callback.call(self, dialog);
+					}
+				});
+			},
+			/**
+			 * Hides the editor pane. This simply means sliding it up, then moving it out of view
+			 * and redisplaying it there. By letting the editor pane be displayed, we fix problems
+			 * with editor window height and selections (in Firefox).
+			 *
+			 * @return EditorPane Reference to this instance.
+			 */
+			hide: function () {
+				var type = this.type;
+				$(this.pane).slideUp(150, function () {
+					$(this).css('left', '-1000px').show();
+					if (current && type == current.getType()) {
+						current = null;
+					}
+				});
+				return this;
+			}
+		};
+
+		/**
+		 * Sticks the current editor pane's position to the top, so that scrolling will not
+		 * hide the pane.
+		 *
+		 * @param DOMElement | jQuery pane The actual pane element to adjust position of.
+		 */
+		function adjustPosition (pane) {
+			if (pane) {
+				$(pane).css({position: 'absolute', top: 0});
+			}
+		}
+		$(window).scroll(function () {
+			adjustPosition(current && current.pane);
+		});
+
+		/**
+		 * Adjusts the height of an editor to try fitting all text inside the editor area
+		 * and avoid scrollbars.
+		 *
+		 * @param CKEditor editor The editor instance to adjust height of.
+		 */
+		function adjustSize (editor) {
+			if (typeof editor.window == "undefined") {
+				setTimeout(function () {
+					adjustSize(editor);
+				}, 100);
+				return;
+			}
+
+			var
+				editorContainer = editor.container.$,
+				editorWindow = editor.window.$,
+				windowHeight = editorWindow.innerHeight || 0,
+				documentHeight = editorWindow.document.height || 0,
+				containerHeight = editorContainer.offsetHeight || 0,
+				diff = documentHeight - windowHeight;
+
+			if (diff > 0) {
+				editor.resize(
+					editorConfig.resize_maxWidth,
+					Math.max(
+						editorConfig.resize_minHeight,
+						Math.min(containerHeight + diff, editorConfig.resize_maxHeight))
+				);
+			}
+		}
+		
+		/**
+		 * Static interface for editor panes. Provides public methods for creating/getting
+		 * editor pane instances.
+		 */
+		return {
+			/**
+			 * Returns an EditorPane of a specific type. If a pane of this type has been created
+			 * earlier, the existing instance is returned. Otherwise a new instance is created.
+			 *
+			 * @param String type Type of the EditorPane, currently either 'Block' or 'Inline' is
+			 *                    supported.
+			 * @param Object opts Extra options for the editorpane which is used when creating a
+			 *                    new instance.
+			 * @return EditorPane
+			 */
+			getInstance: function (type, opts) {
+				if (instances[type]) {
+					if (typeof opts.loaded == 'function') {
+						opts.loaded.call(instances[type]);
+					}
+					if (typeof opts.ready == 'function') {
+						opts.ready.call(instances[type]);
+					}
+				}
+				else {
+					instances[type] = new EditorPane(type, opts);
+				}
+				return instances[type];
+			},
+			/**
+			 * Return the currently open EditorPane, if any.
+			 *
+			 * @return EditorPane
+			 */
+			getCurrent: function () {
+				return current;
+			}
+		};
+	}
+
+	return {
+		"init": init
+	};
+});
+
+define('plugins/links',['../util/dom'], function (dom) {
+	var $, LinksManager;
+
+	LinksManager = function (editor) {
+		this.editor = editor;
+
+		$('a[editable]').click($.proxy(this.editLink, this));
+	};
+
+	/**
+	 * Initializes editing of an editable link element. Re-uses the WYSIWYGs link dialog.
+	 *
+	 * @param Event e
+	 */
+	LinksManager.prototype.editLink = function (e) {
+		var self = this,
+			original = e.target,
+			pane;
+
+		e.preventDefault();
+		e.stopPropagation();
+
+		// TODO: Clean up when we don't have to manually remove edited elements from CKEditor
+		function getEditedLink () {
+			var
+				/**
+				 * @var CKEDITOR.dom.element
+				 */
+				link = pane.getSelectedElement.call(this, 'a');
+			return link;
+		}
+
+		/**
+		 * Handles OK event from a dialog, retrieving edited link and making sure the
+		 * original link is updated.
+		 *
+		 * @scope CKEDITOR.dialog('link')
+		 */
+		function handleOk () {
+			var link = getEditedLink.call(this);
+			/*
+			 * The edited element is owned by the CKEditor document, so we need to import
+			 * it into our content editor document for using it further.
+			 */
+			self.updateLink(original, self.editor.window.document.importNode(link.$, true));
+		}
+
+		/**
+		 * Handles hide event from a dialog, cleaning up our link specific listeners.
+		 */
+		function handleHide () {
+			this.removeListener('ok', handleOk);
+			this.removeListener('hide', handleHide);
+		}
+
+		// Display an image dialog within the inline editor
+		pane = this.editor.getEditorPane('Inline', {
+			ready: function () {
+				this.showDialog('link', original, function (dialog) {
+					dialog.on('ok', handleOk);
+					/*
+					 * Add onHide listener with priority 1, so we're called before the
+					 * default handler in the link dialog. This enables us to clean up our
+					 * stuff before the link dialog cleans up and removes some elements.
+					 */
+					dialog.on('hide', handleHide, null, null, 1);
+				});
+			}
+		});
+	};
+
+	/**
+	 * Updates an inline editable link with the new href attribute value, and title, style
+	 * and class attributes in case they've been edited as well.
+	 *
+	 * @param DOMElement original The original link element being edited.
+	 * @param DOMElement edited   The edited copy of the link element.
+	 */
+	LinksManager.prototype.updateLink = function (original, edited) {
+		var	newHref = edited.getAttribute('data-cke-saved-href') || edited.getAttribute('href');
+
+		original.setAttribute('href', newHref);
+
+		dom.updateAttribute(original, 'class', edited.getAttribute('class'));
+		dom.updateAttribute(original, 'title', edited.getAttribute('title'));
+		// jQuery normalizes style attribute access in all browsers
+		dom.updateAttribute(original, 'style', $(edited).attr('style'));
+
+		this.editor.trigger('contentchanged.editor');
+	};
+
+	return {
+		register: function (editor) {
+			if (typeof $ === "undefined") {
+				$ = editor.window.jQuery;
+			}
+			new LinksManager(editor);
+		}
+	};
+});
+
+define('plugins/images',['../util/dom'], function (dom) {
+	var $, ImagesManager;
+
+	ImagesManager = function (editor) {
+		this.editor = editor;
+		this.editIcon = $('<img src="http://static.mailmojo/img/icons/edit.png" alt="Rediger" />')
+				.addClass('mm-edit');
+
+		$('img[editable]')
+			.click($.proxy(this.editImage, this))
+			.hover($.proxy(this.handleImageMouseOver, this),
+				   $.proxy(this.handleImageMouseOut, this));
+	};
+
+	/**
+	 * Initializes editing of an editable image element, optionally wrapped inside a link
+	 * element. Re-uses the WYSIWYGs image dialog which supports uploading a new image as well.
+	 * Also, when the editable image is wrapped inside a link element, the link URL can be
+	 * edited in the 'Link' tab of the image dialog.
+	 *
+	 * @param Event e
+	 */
+	ImagesManager.prototype.editImage = function (e) {
+		var
+			self = this,
+			$img = $(e.target),
+			$parent = $img.parent(),
+			isLink = $parent.is('a'),
+			original = (isLink ? $parent : $img)[0],
+			lockWidth = dom.hasAttribute($img[0], 'width'),
+			lockHeight = dom.hasAttribute($img[0], 'height'),
+			clone = null,
+			pane;
+
+		e.preventDefault();
+		e.stopPropagation();
+
+		/*
+		 * For link elements containing an editable image we make a clean clone of the link
+		 * element containing only the editable image inside it.
+		 * This is due to a bug in Firefox and Opera where any text nodes inside the link
+		 * element would create a weird DOM selection that CKEditor couldn't handle.
+		 *
+		 * Since we now just update the attributes that are available in the dialog for image and
+		 * link, everything else like text nodes etc, will stay untouched inside the link.
+		 */
+		if (isLink) {
+			clone = original.cloneNode(false);
+			clone.appendChild(original.getElementsByTagName('img').item(0).cloneNode(false));
+		}
+
+		/**
+		 * Called in the scope of an image dialog after a new image has been loaded, either
+		 * through changes to the URL directly or a newly uploaded image.
+		 * This will make sure the width and height set for the new image fits the requirements
+		 * set in the attributes of the original content image being edited.
+		 *
+		 * @scope CKEditor.dialog('image')
+		 */
+		function checkSize (e) {
+			var
+				// Calculate proportion of newly loaded image in image dialog
+				newImage = this.originalElement,
+				newProportion = newImage.$.width / newImage.$.height,
+				// Get width and height of original source image being edited
+				sourceWidth = $img[0].getAttribute('width'),
+				sourceHeight = $img[0].getAttribute('height'),
+				// Get a reference to the width and height input fields in the image dialog
+				widthField = this.getContentElement('info', 'txtWidth'),
+				heightField = this.getContentElement('info', 'txtHeight');
+
+			if (lockWidth && lockHeight) {
+				// Avoid CKEditor updating width/height after we set a fixed size
+				this.lockRatio = false;
+				widthField.setValue(sourceWidth);
+				heightField.setValue(sourceHeight);
+			}
+			else if (lockWidth) {
+				widthField.setValue(sourceWidth);
+				heightField.setValue(Math.round(sourceWidth / newProportion));
+			}
+			else if (lockHeight) {
+				widthField.setValue(Math.round(sourceHeight * newProportion));
+				heightField.setValue(sourceHeight);
+			}
+
+			/*
+			 * Trigger keyup event to force update of the preview window.
+			 * The event is wrapped in a CKEditor DOM event object since it might be
+			 * a custom CKEditor system event (i.e. from dialog.onShow). setTimeout
+			 * makes sure that we can fire the key up event when the new image has
+			 * been loaded into the DOM.
+			 */
+			setTimeout(function () {
+				widthField.getInputElement().fire('keyup', new CKEDITOR.dom.event(e));
+			}, 50);
+		}
+
+		// TODO: Clean up when we don't have to manually remove edited elements from CKEditor
+		function getEditedImage () {
+			var
+				/**
+				 * @var CKEDITOR.dom.element
+				 */
+				image = pane.getSelectedElement.call(this, 'img'),
+				/**
+				 * @var CKEDITOR.dom.element
+				 */
+				edited = image.getParent().getName() === 'a' ? image.getParent() : image;
+			return edited;
+		}
+
+		/**
+		 * Handles OK event from a dialog, retrieving edited image and making sure the
+		 * original image is updated.
+		 *
+		 * @scope CKEDITOR.dialog('image')
+		 */
+		function handleOk () {
+			var image = getEditedImage.call(this);
+			self.updateImage(original, image.$);
+		}
+
+		/**
+		 * Handles show event from an image dialog, attaching a listener for changes to the
+		 * image URL to restrict width/height changes when either size is locked.
+		 *
+		 * @scope CKEditor.dialog('image')
+		 */
+		function handleShow (e) {
+			if (lockWidth || lockHeight) {
+				// Add onLoad handler with lower priority than default, to override CKEditor
+				this.originalElement.on('load', checkSize, this, null, 20);
+				/*
+				 * Make sure width/height fields are filled out properly in the dialog.
+				 * For images with only one of the sizes set, the CKEditor image dialog will
+				 * present a blank field for the missing size property. Our size check fixes this.
+				 */
+				checkSize.call(this, e);
+			}
+
+			/**
+			 * Make sure that IE does not prepend the relative uri to the hash if the image
+			 * has placeholder content.
+			 */
+			var src = $img[0].getAttribute('src');
+			if (src.length > 1 && src.match('#$') !== null) {
+				this.getContentElement('info', 'txtUrl').setValue('#');
+			}
+
+			/*
+			 * Always set URL field in ckeditor dialog to the clone's href content.
+			 * jQuery removes about:blank in IE7, when defined as '#' in the template.
+			 */
+			if (isLink) {
+				this.getContentElement('Link', 'txtUrl').setValue($(clone).attr('href'));
+			}
+			else {
+				this.hidePage('Link');
+			}
+			this.hidePage('advanced');
+		}
+
+		/**
+		 * Handles hide event from a dialog, cleaning up our image specific listeners.
+		 */
+		function handleHide () {
+			// Clean up event listeners
+			if (lockWidth || lockHeight) {
+				this.originalElement.removeListener('load', checkSize);
+			}
+			this.removeListener('ok', handleOk);
+			this.removeListener('show', handleShow);
+			this.removeListener('hide', handleHide);
+
+			// Make sure any panels we've hidden are shown again in the dialog
+			this.showPage('Link');
+			this.showPage('advanced');
+		}
+
+		// Display an image dialog within the inline editor
+		pane = this.editor.getEditorPane('Inline', {
+			ready: function () {
+				self.hideImageEditIcon();
+
+				this.showDialog('image', clone || original, function (dialog) {
+					dialog.on('ok', handleOk);
+					dialog.on('show', handleShow);
+					/*
+					 * Add onHide listener with priority 1, so we're called before the
+					 * default handler in the image dialog. This enables us to clean up our
+					 * stuff before the image dialog cleans up and removes some elements.
+					 */
+					dialog.on('hide', handleHide, null, null, 1);
+				});
+			}
+		});
+	};
+
+	/**
+	 * Updates an editable image with an updated version from CKEditor.
+	 * To ensure that the image with or without a link does not get any more attributes than
+	 * those you can change in the image dialog, we manual copy them from the edited image
+	 * in the image dialog, to the original image in the newsletter.
+	 *
+	 * @param DOMElement original The original element in the content editor.
+	 * @param DOMElement edited   A copy of the original with updated attributes.
+	 */
+	ImagesManager.prototype.updateImage = function (original, edited) {
+		var
+			isLink = edited.nodeName.toLowerCase() === 'a',
+			$img = isLink ? $(edited).find('img') : $(edited),
+			$originalImg = isLink ? $(original).find('img') : $(original);
+
+		this.cleanupImage($img[0], $originalImg[0]);
+
+		if (isLink) {
+			// We want to ensure that the URL is not relative to our domain
+			var linkUrl = $(edited).attr('href') || '';
+			if (linkUrl.length > 1 && linkUrl.substring(0, 7) != 'http://') {
+				linkUrl = 'http://' + linkUrl;
+			}
+
+			// Use setAttribute since we always want the attribute to exist
+			original.setAttribute('href', linkUrl);
+			// Update target, possibly removing the attribute if empty
+			dom.updateAttribute(original, 'target', edited.getAttribute('target'));
+
+			// Add old-school zero border attribute for images inside links to avoid "blue link border"
+			$originalImg.attr('border', '0');
+		}
+
+		/*
+		 * Copy attributes from edited image to the original image
+		 */
+		$.each(['src', 'alt', 'width', 'height', 'align'],
+			function (idx, property) {
+				/*
+				 * We don't want to copy over width and/or height if it's not set on the original image. IE 7
+				 * has a fallback to naturalWidht/Height in that case, which we dont want to do.
+				 */
+				if ((property == 'width' || property == 'height') &&
+						!dom.hasAttribute(original, property)) {
+					return;
+				}
+				/*
+				 * We do not use $.attr() since jQuery has fallback on width and height which is not
+				 * the desired effect.
+				 */
+				var value =  $img[0].getAttribute(property);
+				if (property == 'align' && value !== null) {
+					// The only style element that is of interest. The rest is kept on the original.
+					$originalImg.css('float', value);
+				}
+				dom.updateAttribute($originalImg[0], property, value);
+			}
+		);
+
+		this.editor.trigger('contentchanged.editor');
+	};
+
+	/**
+	 * Cleans up the attributes of an image, either for a specific editable image or an image
+	 * inside mixed HTML content (edited through mm:content etc.).
+	 * Currently we only make sure the image has width, height and align set using attributes
+	 * and not only using inline styles.
+	 * For editable images the width and height are only added when both are missing, otherwise
+	 * the existing attribute is updated but the missing attribute is not added. This is due to
+	 * our support for selective locking of either width or height on editable images.
+	 *
+	 * @param HTMLElement img      The edited image element to clean.
+	 * @param HTMLElement original The original image that's been edited, only relevant for
+	 *                             editable images.
+	 */
+	ImagesManager.prototype.cleanupImage = function (img, original) {
+		var $img = $(img),
+			width = $img.attr('width') || $img[0].naturalWidth, sWidth = parseInt($img.css('width'), 10),
+			height = $img.attr('height') || $img[0].naturalHeight, sHeight = parseInt($img.css('height'), 10),
+			align = $img.css('float');
+
+		/*
+		 * An original image refers to an editable image. To support selective locking of
+		 * width or height we have to handle updates to these attributes differently when
+		 * cleaning updated editable images.
+		 */
+		if (original) {
+			/*
+			 * If no width and height is set on the original editable image, force a fixed
+			 * size to avoid bad rendering in Outlook when images are not shown.
+			 */
+			if (!dom.hasAttribute(original, 'width') && !dom.hasAttribute(original, 'height')) {
+				img.setAttribute('width', (sWidth && sWidth > 0) ? sWidth : width);
+				img.setAttribute('height', (sHeight && sHeight > 0) ? sHeight : height);
+			}
+			/*
+			 * Otherwise when either width or height exists on the original editable image
+			 * we only update the existing size attribute and remove the other size attribute
+			 * from the updated image.
+			 */
+			else {
+				if (dom.hasAttribute(original, 'width')) {
+					img.setAttribute('width', (sWidth && sWidth > 0) ? sWidth : width);
+				}
+				else {
+					img.removeAttribute('width');
+					$img.css('width', '');
+				}
+
+				if (dom.hasAttribute(original, 'height')) {
+					img.setAttribute('height', (sHeight && sHeight > 0) ? sHeight : height);
+				}
+				else {
+					img.removeAttribute('height');
+					$img.css('height', '');
+				}
+			}
+		}
+		/*
+		 * When no original image exists we are cleaning up images from mm:content or similar
+		 * mixed content. These should always have a width and height attribute set.
+		 */
+		else {
+			/*
+			 * Add missing width/height attributes and set them to the corresponding inline
+			 * style value if it exists, or the actual width/height as reported by the
+			 * browser as a fallback.
+			 */
+			if (!dom.hasAttribute(img, 'width')) {
+				img.setAttribute('width', (sWidth && sWidth > 0) ? sWidth : width);
+			}
+			if (!dom.hasAttribute(img, 'height')) {
+				img.setAttribute('height', (sHeight && sHeight > 0) ? sHeight : height);
+			}
+		}
+
+		// Make sure align attribute is set if image is floated
+		align = (align || '').toLowerCase();
+		if (align == 'right' || align == 'left') {
+			img.setAttribute('align', align);
+		}
+	};
+
+	/**
+	 * Makes sure an edit icon is displayed above an editable image if it currently doesn't
+	 * have an edit icon.
+	 *
+	 * @param Event e
+	 */
+	ImagesManager.prototype.handleImageMouseOver = function (e) {
+		if (this.editor.getCurrentEditorPane() !== null) {
+			return false;
+		}
+
+		if (this.editIcon.data('relatedImage') !== e.target) {
+			this.showImageEditIcon(e.target);
+		}
+	};
+
+	/**
+	 * Displays an edit icon in the top left corner on top of an editable image.
+	 *
+	 * @param DOMElement image
+	 */
+	ImagesManager.prototype.showImageEditIcon = function (image) {
+		var
+			$image = $(image),
+			pos = $image.position(),
+			style = {
+				'left': pos.left + 4,
+				'top': pos.top + 4
+			};
+
+		$image.addClass('hover');
+		this.editIcon
+			.data('relatedImage', image)
+			.css(style)
+			.insertAfter(image)
+			.click(function (e) {
+				editImage.call(image, e);
+				hideImageEditIcon();
+			});
+	};
+
+	/**
+	 * Makes sure the edit icon above an editable image is hidden if the mouse actually
+	 * moved outside the editable image. It prevents hiding of the edit icon if the mouse
+	 * just moved over the edit icon itself.
+	 *
+	 * @param Event e
+	 */
+	ImagesManager.prototype.handleImageMouseOut = function (e) {
+		var
+			$this = $(e.target),
+			$toElement = $(e.toElement),
+			pos = $this.offset(),
+			size = { width: $this.width(), height: $this.height() };
+
+		// Avoid incorrectly hiding the icon if the mouse moved over the icon for this image
+		if ($toElement.is('.mm-edit') && $toElement.data('relatedImage') == this) {
+			return;
+		}
+
+		// Check if the mouse actually went outside the image boundaries
+		if (e.clientX < pos.left || e.clientX > pos.left + size.width
+				|| e.clientY < pos.top || e.clientY > pos.top + size.height) {
+			this.hideImageEditIcon();
+		}
+	};
+
+	/**
+	 * Hides the edit icon for editable images.
+	 */
+	ImagesManager.prototype.hideImageEditIcon = function () {
+		var $image = $(this.editIcon.data('relatedImage'));
+		$image.removeClass('hover');
+		this.editIcon.data('relatedImage', null).remove();
+	};
+
+	return {
+		register: function (editor) {
+			if (typeof $ === "undefined") {
+				$ = editor.window.jQuery;
+			}
+			new ImagesManager(editor);
+		}
+	};
+});
+
+define('plugins',['plugins/dynamic_content', 'plugins/editables', 'plugins/snippets',
+	   'plugins/links', 'plugins/images'],
+	function (dynamicContent, editables, snippets, links, images) {
+		return [
+			dynamicContent, editables, snippets, links, images
+		];
+	}
+);
 
 define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 	var editorIndex = 0;
@@ -1552,9 +2250,9 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 		textarea.style.display = 'none';
 		textarea.parentNode.insertBefore(iframe, textarea);
 
-		iframe.contentDocument.open();
-		iframe.contentDocument.write(htmlContent);
-		iframe.contentDocument.close();
+		iframe.contentWindow.document.open();
+		iframe.contentWindow.document.write(htmlContent);
+		iframe.contentWindow.document.close();
 
 		return iframe;
 	}
@@ -1616,7 +2314,7 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 		function loadDependencies (callback) {
 			// TODO: Make sure every browser implicitly creates a head element if it's missing
 			var self = this,
-				header = this.iframe.contentDocument.getElementsByTagName('head').item(0),
+				header = this.iframe.contentWindow.document.getElementsByTagName('head').item(0),
 				numDependencies = 2;
 
 			function onload (dependency) {
@@ -1638,7 +2336,11 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 			// TODO: Move to separate init method or similar?
 			this.ui.buttons = {
 				edit: $('<span class="mm-edit" />').append(
-					'<img src="http://static.mailmojo/img/icons/edit.png" alt="Rediger" />')
+					'<img src="http://static.mailmojo/img/icons/edit.png" alt="Rediger" />'),
+				add: $('<div class="mm-add" />').append(
+					'<button type="button" class="add">Legg til ny</button>'),
+				remove: $('<span class="mm-remove" />').append(
+					'<img src="http://static.mailmojo/img/icons/delete.png" alt="Slett" />')
 			};
 			this.ui.overlay = $('<div class="mm-overlay" />')
 				.css({
@@ -1661,8 +2363,8 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 			 * Since internet explorer does not have an importNode function
 			 * we create one for it instead.
 			 */
-			if (typeof this.iframe.contentDocument.importNode == 'undefined') {
-				dom.assignCustomImportNode(this.iframe.contentDocument);
+			if (typeof this.iframe.contentWindow.document.importNode == 'undefined') {
+				dom.assignCustomImportNode(this.iframe.contentWindow.document);
 			}
 
 			// Prevents the user from "leaving" the content editor.
@@ -1776,6 +2478,9 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 	 */
 	ContentEditor.prototype.getEditorPane = function (type, opts) {
 		var self = this;
+
+		opts = opts || {};
+
 		return this.panes.getInstance(type, {
 			save: function (e, pane) {
 				self.handleSave(e, pane);
@@ -1788,7 +2493,8 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 				if (typeof opts.handleCancel !== "undefined") {
 					opts.handleCancel(self, pane);
 				}
-			}
+			},
+			ready: (typeof opts.ready !== "undefined" ? opts.ready : null)
 		});
 	};
 

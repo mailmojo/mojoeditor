@@ -53,7 +53,7 @@ define(function () {
 	type = function( obj ) {
 		return obj === null ?
 			String( obj ) :
-			class2type[ toString.call(obj) ] || "object";
+			class2type[ Object.prototype.toString.call(obj) ] || "object";
 	};
 	isArray = Array.isArray || function( obj ) {
 		return type(obj) === "array";

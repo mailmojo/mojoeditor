@@ -2,7 +2,7 @@
  * Encapsulation of static interface/factory and class for EditorPane objects which manages
  * panes with WYSIWYG editors that can have different configurations (i.e. toolbars).
  */
-define(['./ckeditor_config'], function (editorConfig) {
+define(['./ckeditor_config', '../util/dom'], function (editorConfig, dom) {
 
 	function init (window) {
 		var
@@ -364,7 +364,7 @@ define(['./ckeditor_config'], function (editorConfig) {
 					 *       added on every new document instance.
 					 */
 					if (typeof doc.importNode == 'undefined') {
-						assignCustomImportNode(doc);
+						dom.assignCustomImportNode(doc);
 					}
 	
 					clone = doc.importNode(element, true);
@@ -424,7 +424,7 @@ define(['./ckeditor_config'], function (editorConfig) {
 		 */
 		function adjustPosition (pane) {
 			if (pane) {
-				$(pane).css({position: 'fixed', top: 0});
+				$(pane).css({position: 'absolute', top: 0});
 			}
 		}
 		$(window).scroll(function () {
