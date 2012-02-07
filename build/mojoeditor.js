@@ -2219,6 +2219,7 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 
 	function convertToIframe (textarea) {
 		var iframe = document.createElement('iframe'),
+			iframedoc = null,
 			htmlContent = textarea.value,
 			// TODO: This should be supported for pre-rendered iframes too
 			skypeMetaTag = '<meta name="SKYPE_TOOLBAR" content="SKYPE_TOOLBAR_PARSER_COMPATIBLE" />\n';
@@ -2250,9 +2251,10 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 		textarea.style.display = 'none';
 		textarea.parentNode.insertBefore(iframe, textarea);
 
-		iframe.contentWindow.document.open();
-		iframe.contentWindow.document.write(htmlContent);
-		iframe.contentWindow.document.close();
+		iframedoc = iframe.contentWindow.document;
+		iframedoc.open();
+		iframedoc.write(htmlContent);
+		iframedoc.close();
 
 		return iframe;
 	}
@@ -2305,8 +2307,8 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 
 		this.iframe = iframe;
 		this.window = iframe.contentWindow;
+		this.document = iframe.contentWindow.document;
 		this.opts = opts;
-		this.initialized = false;
 		this.listenerQueue = [];
 		this.panes = null;
 		this.ui = {};
@@ -2314,7 +2316,7 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 		function loadDependencies (callback) {
 			// TODO: Make sure every browser implicitly creates a head element if it's missing
 			var self = this,
-				header = this.iframe.contentWindow.document.getElementsByTagName('head').item(0),
+				header = this.document.getElementsByTagName('head').item(0),	
 				numDependencies = 2;
 
 			function onload (dependency) {
@@ -2363,8 +2365,8 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 			 * Since internet explorer does not have an importNode function
 			 * we create one for it instead.
 			 */
-			if (typeof this.iframe.contentWindow.document.importNode == 'undefined') {
-				dom.assignCustomImportNode(this.iframe.contentWindow.document);
+			if (typeof this.document.importNode == 'undefined') {
+				dom.assignCustomImportNode(this.document);
 			}
 
 			// Prevents the user from "leaving" the content editor.
@@ -2385,9 +2387,9 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 				for ( ; i < len; i++) {
 					$(this.window).on(this.listenerQueue[i].e, this.listenerQueue[i].fn);
 				}
+				delete this.listenerQueue;
 			}
 
-			this.initialized = true;
 			this.trigger('initialized.editor');
 		}
 
@@ -2553,7 +2555,7 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 	};
 
 	ContentEditor.prototype.on = function (event, callback) {
-		if (this.initialized) {
+		if (typeof this.listenerQueue === "undefined") {
 			this.window.jQuery(this.window).on(event, callback);
 		}
 		else {
