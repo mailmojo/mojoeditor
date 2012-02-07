@@ -80,6 +80,23 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 		return element.appendChild(script);
 	}
 
+	/**
+	 * Creates a link element referring to an external stylesheet file, and injects it into
+	 * the element specified.
+	 *
+	 * @param HTMLElement element Element to inject stylesheet into.
+	 * @param String file         URL, relative or absolute, of stylesheet file.
+	 * @return HTMLLinkElement
+	 */
+	function injectStyleSheet (element, file) {
+		var style = element.ownerDocument.createElement('link');
+
+		style.setAttribute('type', 'text/css');
+		style.setAttribute('rel', 'stylesheet');
+		style.setAttribute('href', file);
+		return element.appendChild(style);
+	}
+
 	var defaults = {
 		ckeditor: 'http://static.mailmojo/js/lib/ckeditor/ckeditor.js',
 		jquery: 'http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js'
@@ -109,6 +126,7 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 				}
 			}
 
+			injectStyleSheet(header, this.opts.root + 'css/editor.css');
 			injectJavaScript(header, this.opts.ckeditor, onload);
 			injectJavaScript(header, this.opts.jquery, onload);
 		}
@@ -357,6 +375,39 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 		$window.trigger.apply($window, args);
 	};
 
+
+	// Lookup the URL of the main script, for referencing default CSS and images
+	var urls = {
+		concat: function (url1, url2) {
+			var l = url1.substr(-1), s = url2.substr(0, 1);
+			if (l !== '/' && s !== '/') {
+				return url1 + '/' + url2;
+			}
+			else if (l === '/' && s === '/') {
+				return url1 + url2.substr(1);
+			}
+			return url1 + url2;
+		}
+	};
+
+	var scripts = document.getElementsByTagName('script'),
+		len = scripts.length, i = 0, url;
+	for ( ; i < len; i++) {
+		if ((url = scripts[i].getAttribute('src') || '').indexOf('mojoeditor') !== -1) {
+			url = url.substr(0, url.indexOf('mojoeditor'));
+			if (url.substr(0, 3) !== 'http') {
+				if (url.substr(0, 1) !== '/') {
+					url = urls.concat(window.location.pathname, url);
+				}
+			}
+			break;
+		}
+		else if ((url = scripts[i].getAttribute('data-main') || '') === 'src/main') {
+			url = urls.concat(window.location.pathname, '/src/');
+			break;
+		}
+	}
+
 	return {
 		/**
 		 * Initializes a MailMojo Content Editor from a textarea or iframe
@@ -381,6 +432,7 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 		init: function (el, opts) {
 			// TODO: Support merging
 			opts = opts || defaults;
+			opts.root = url;
 
 			if (el.nodeName.toLowerCase() == 'textarea') {
 				el = convertToIframe(el);

@@ -1,0 +1,245 @@
+/* Stylesheet for the content editor */
+@namespace mm url(http://z-it.no/ns/MailMojo);
+
+mm\:content,
+mm\:snippet {
+	position: relative;
+	display: block;
+	border: 1px dashed #666666;
+	-webkit-border-radius: 6px;
+	-moz-border-radius: 6px;
+	border-radius: 6px;
+}
+
+mm\:content:after,
+mm\:snippet:after {
+	clear: both;
+	content: ' ';
+	display: block;
+	font-size: 0;
+	line-height: 0;
+	visibility: hidden;
+	width: 0;
+	height: 0;
+}
+
+mm\:content:hover,
+mm\:snippet:hover {
+	border-style: solid;
+}
+
+mm\:content {
+	min-width: 30px;
+	min-height: 30px;
+}
+
+	mm\:content span.mm-edit,
+	mm\:snippet span.mm-remove {
+		position: absolute;
+		top: 3px;
+		right: 3px;
+		margin: 0;
+		padding: 3px;
+		border: 1px solid #cccccc;
+		background-color: #dddddd;
+		color: #666666;
+		-webkit-border-radius: 11px;
+		-moz-border-radius: 11px;
+		border-radius: 11px;
+	}
+	mm\:content span.mm-edit:hover,
+	mm\:snippet span.mm-remove:hover {
+		background-color: #cccccc;
+	}
+
+		/*
+		 * To avoid CSS in templates messing with our edit icons we try to override with
+		 * important styles. Won't work in IE, but also a bit of an edge case.
+		 */
+		mm\:content span.mm-edit img,
+		mm\:snippet span.mm-remove img {
+			margin: 0 !important;
+			padding: 0 !important;
+			border: 0 !important;
+		}
+
+mm\:snippet {
+	margin-bottom: 30px;
+	-webkit-border-bottom-right-radius: 0;
+	-moz-border-radius-bottomright: 0;
+	border-bottom-right-radius: 0;
+}
+
+mm\:snippet.mm-duplicated {
+	-webkit-border-bottom-right-radius: 6px;
+	-moz-border-radius-bottomright: 6px;
+	border-bottom-right-radius: 6px;
+	margin-bottom: 1px;
+}
+
+span.mm-edit,
+span.mm-remove {
+	cursor: pointer;
+	margin-left: 2px;
+}
+
+img.mm-edit {
+	position: absolute;
+	cursor: pointer;
+	z-index: 1000;
+	padding: 3px;
+	border: 1px solid #a9a9a9;
+	background-color: #dddddd;
+	-webkit-box-shadow: 0 0 2px #ffffff;
+	-webkit-border-radius: 11px;
+	-moz-border-radius: 11px;
+	border-radius: 11px;
+}
+img.mm-edit:hover {
+	background-color: #cccccc;
+}
+
+span[editable] {
+	border-bottom: 1px dashed #cccccc; 
+}
+
+span[editable]:hover {
+	border-color: #666666;
+}
+
+img[editable] {
+	min-width: 30px;
+	min-height: 30px;
+	cursor: pointer;
+	border: 1px dashed #666666;
+}
+img[editable].hover,
+img[editable]:hover {
+	border-style: solid;
+}
+
+a[editable] {
+    display: inline-block;
+    padding-right: 16px;
+    background: url(../img/edit.png) no-repeat right center;
+}
+
+div.mm-add {
+	position: absolute;
+	right: -1px;
+	bottom: -26px;
+}
+
+	div.mm-add button {
+		-webkit-border-top-right-radius: 0;
+		-webkit-border-top-left-radius: 0;
+		-moz-border-radius-topright: 0;
+		-moz-border-radius-topleft: 0;
+	}
+
+button {
+	display: inline-block;
+	height: 25px;
+	margin: 0;
+	padding: 1px 10px 1px 24px;
+	border: 1px solid #cccccc;
+
+	background-color: #dddddd;
+	background-repeat: no-repeat;
+	background-position: 4px 3px;
+	color: #666666;
+
+	font: bold 13px/13px "Lucida Sans Unicode", "Lucida Grande", "Helvetica Neue", Helvetica, Arial, sans-serif;
+	text-decoration: none;
+	text-shadow: 1px 1px 1px #ffffff;
+	text-align: left;
+
+	-webkit-border-radius: 12px;
+	-moz-border-radius: 12px;
+	border-radius: 12px;
+	cursor: pointer;
+}
+/* Remove extra padding around text inside buttons in Firefox */
+button::-moz-focus-inner {
+    border: 0;
+    padding: 0;
+}
+
+button:hover {
+	background-color: #cccccc;
+	color: #ffffff;
+	text-shadow: 1px 1px 1px #666666;
+}
+
+button.cancel {
+	height: 25px;
+	margin: 0;
+	padding: 0;
+	border: none;
+	background-color: transparent;
+	color: #f2943d;
+	font-weight: normal;
+	text-decoration: underline;
+	text-shadow: none;
+	-webkit-border-radius: 0;
+	-moz-border-radius: 0;
+	border-radius: 0;
+}
+button.cancel:hover {
+	text-decoration: none;
+	text-shadow: none;
+}
+
+button.save {
+	background-image: url(../img/save.png);
+}
+button.add {
+	background-image: url(../img/add.png);
+}
+
+/*
+ * WYSIWYG editor container
+ */
+div.mm-editor {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 613px;
+	margin: 0 27px;
+	padding: 0 10px 10px 10px;
+	border: 2px solid #cccccc;
+	border-top: 0;
+	z-index: 9000;
+
+	/* Use fixed sizes to override any mail template CSS completely for our GUI */
+	font: 13px/21px "Lucida Sans Unicode", "Lucida Grande", "Helvetica Neue", Helvetica, Arial, sans-serif;
+	background-color: #ffffff;
+	color: #333333;
+
+	-webkit-box-shadow: 0 5px 10px rgba(0, 0, 0, 0.25);
+	-webkit-border-radius: 12px;
+	-webkit-border-top-left-radius: 0;
+	-webkit-border-top-right-radius: 0;
+	-moz-border-radius: 12px;
+	-moz-border-radius-topleft: 0;
+	-moz-border-radius-topright: 0;
+	border-radius: 12px;
+	border-top-left-radius: 0;
+	border-top-right-radius: 0;
+}
+
+	div.mm-editor div.mm-editor-content {
+		margin: 10px 0;
+	}
+
+/*
+ * Background overlay
+ */
+div.mm-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 580px;
+	background-color: #ffffff;
+}

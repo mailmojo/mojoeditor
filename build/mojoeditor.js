@@ -1437,13 +1437,11 @@ define('editor/pane',['./ckeditor_config', '../util/dom'], function (editorConfi
 
 				adjustPosition(this.pane);
 
-				$(this.pane).hide().css('left', '0px').slideDown(150, function () {
+				$(this.pane).hide().css({ left: 0 }).slideDown(150, function () {
 					// Expand editor to fit all text, has to be done when pane is visible
-					setTimeout(function () {
-						adjustSize(self.editor);
-						self.editor.focus();
-						current = self;
-					}, 10);
+					adjustSize(self.editor);
+					self.editor.focus();
+					current = self;
 				});
 				return this;
 			},
@@ -1606,7 +1604,8 @@ define('editor/pane',['./ckeditor_config', '../util/dom'], function (editorConfi
 		 * @param CKEditor editor The editor instance to adjust height of.
 		 */
 		function adjustSize (editor) {
-			if (typeof editor.window == "undefined") {
+			if (typeof editor.window == "undefined" ||
+					typeof editor.window.$.document == "undefined") {
 				setTimeout(function () {
 					adjustSize(editor);
 				}, 100);
@@ -1799,10 +1798,10 @@ define('plugins/images',['../util/dom'], function (dom) {
 	 *
 	 * @param Event e
 	 */
-	ImagesManager.prototype.editImage = function (e) {
+	ImagesManager.prototype.editImage = function (e, image) {
 		var
 			self = this,
-			$img = $(e.target),
+			$img = $(image || e.target),
 			$parent = $img.parent(),
 			isLink = $parent.is('a'),
 			original = (isLink ? $parent : $img)[0],
@@ -2154,10 +2153,10 @@ define('plugins/images',['../util/dom'], function (dom) {
 			.data('relatedImage', image)
 			.css(style)
 			.insertAfter(image)
-			.click(function (e) {
-				editImage.call(image, e);
-				hideImageEditIcon();
-			});
+			.click($.proxy(function (e) {
+				this.editImage(e, image);
+				this.hideImageEditIcon();
+			}, this));
 	};
 
 	/**
@@ -2296,6 +2295,23 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 		return element.appendChild(script);
 	}
 
+	/**
+	 * Creates a link element referring to an external stylesheet file, and injects it into
+	 * the element specified.
+	 *
+	 * @param HTMLElement element Element to inject stylesheet into.
+	 * @param String file         URL, relative or absolute, of stylesheet file.
+	 * @return HTMLLinkElement
+	 */
+	function injectStyleSheet (element, file) {
+		var style = element.ownerDocument.createElement('link');
+
+		style.setAttribute('type', 'text/css');
+		style.setAttribute('rel', 'stylesheet');
+		style.setAttribute('href', file);
+		return element.appendChild(style);
+	}
+
 	var defaults = {
 		ckeditor: 'http://static.mailmojo/js/lib/ckeditor/ckeditor.js',
 		jquery: 'http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js'
@@ -2325,6 +2341,7 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 				}
 			}
 
+			injectStyleSheet(header, this.opts.root + 'css/editor.css');
 			injectJavaScript(header, this.opts.ckeditor, onload);
 			injectJavaScript(header, this.opts.jquery, onload);
 		}
@@ -2573,6 +2590,39 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 		$window.trigger.apply($window, args);
 	};
 
+
+	// Lookup the URL of the main script, for referencing default CSS and images
+	var urls = {
+		concat: function (url1, url2) {
+			var l = url1.substr(-1), s = url2.substr(0, 1);
+			if (l !== '/' && s !== '/') {
+				return url1 + '/' + url2;
+			}
+			else if (l === '/' && s === '/') {
+				return url1 + url2.substr(1);
+			}
+			return url1 + url2;
+		}
+	};
+
+	var scripts = document.getElementsByTagName('script'),
+		len = scripts.length, i = 0, url;
+	for ( ; i < len; i++) {
+		if ((url = scripts[i].getAttribute('src') || '').indexOf('mojoeditor') !== -1) {
+			url = url.substr(0, url.indexOf('mojoeditor'));
+			if (url.substr(0, 3) !== 'http') {
+				if (url.substr(0, 1) !== '/') {
+					url = urls.concat(window.location.pathname, url);
+				}
+			}
+			break;
+		}
+		else if ((url = scripts[i].getAttribute('data-main') || '') === 'src/main') {
+			url = urls.concat(window.location.pathname, '/src/');
+			break;
+		}
+	}
+
 	return {
 		/**
 		 * Initializes a MailMojo Content Editor from a textarea or iframe
@@ -2597,6 +2647,7 @@ define('editor',['editor/pane', 'plugins', 'util/dom'], function (panes, plugins
 		init: function (el, opts) {
 			// TODO: Support merging
 			opts = opts || defaults;
+			opts.root = url;
 
 			if (el.nodeName.toLowerCase() == 'textarea') {
 				el = convertToIframe(el);

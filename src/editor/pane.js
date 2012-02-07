@@ -269,13 +269,11 @@ define(['./ckeditor_config', '../util/dom'], function (editorConfig, dom) {
 
 				adjustPosition(this.pane);
 
-				$(this.pane).hide().css('left', '0px').slideDown(150, function () {
+				$(this.pane).hide().css({ left: 0 }).slideDown(150, function () {
 					// Expand editor to fit all text, has to be done when pane is visible
-					setTimeout(function () {
-						adjustSize(self.editor);
-						self.editor.focus();
-						current = self;
-					}, 10);
+					adjustSize(self.editor);
+					self.editor.focus();
+					current = self;
 				});
 				return this;
 			},
@@ -438,7 +436,8 @@ define(['./ckeditor_config', '../util/dom'], function (editorConfig, dom) {
 		 * @param CKEditor editor The editor instance to adjust height of.
 		 */
 		function adjustSize (editor) {
-			if (typeof editor.window == "undefined") {
+			if (typeof editor.window == "undefined" ||
+					typeof editor.window.$.document == "undefined") {
 				setTimeout(function () {
 					adjustSize(editor);
 				}, 100);

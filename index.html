@@ -31,6 +31,7 @@
 
 					&lt;mm:snippet&gt;
 						&lt;p&gt;Dette avsnittet kan dupliseres!&lt;/p&gt;
+					&lt;/mm:snippet&gt;
 				&lt;/body&gt;
 			&lt;/html&gt;
 		</textarea>
@@ -48,6 +49,7 @@
 					})
 					.on('contentchanged.editor', function (e) {
 						var content = editor.getContent();
+						console.log(content);
 						// Do something with the updated HTML content here
 					});
 			});
