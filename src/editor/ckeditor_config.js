@@ -64,9 +64,6 @@ define({
 	resize_minHeight: 100,
 	resize_maxHeight: 380,
 
-	// URL to action for uploading images
-	filebrowserImageUploadUrl: '/mailings/' + '91201' + '/images/upload',
-
 	// Avoid loading separate config.js
 	customConfig: ''
 });

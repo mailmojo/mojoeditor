@@ -8,6 +8,10 @@
 				width: 700px;
 				height: 600px;
 			}
+
+			iframe {
+				border: 0;
+			}
 		</style>
 	</head>
 	<body>
@@ -41,7 +45,9 @@
 		<script>
 			require(['main'], function () {
 				var content = document.getElementById('content'),
-					editor = MojoEditor.init(content);
+				editor = MojoEditor.init(content, {
+					imageUploadUrl: '/images/upload'
+				});
 
 				editor
 					.on('initialized.editor', function (e) {
@@ -49,7 +55,6 @@
 					})
 					.on('contentchanged.editor', function (e) {
 						var content = editor.getContent();
-						console.log(content);
 						// Do something with the updated HTML content here
 					});
 			});

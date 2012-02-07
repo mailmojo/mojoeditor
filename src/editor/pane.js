@@ -498,6 +498,10 @@ define(['./ckeditor_config', '../util/dom'], function (editorConfig, dom) {
 			 */
 			getCurrent: function () {
 				return current;
+			},
+
+			setEditorOption: function (name, value) {
+				editorConfig[name] = value;
 			}
 		};
 	}

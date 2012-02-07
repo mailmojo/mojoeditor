@@ -1,4 +1,4 @@
-define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
+define(['editor/pane', 'plugins', 'util/dom', 'util/type'], function (panes, plugins, dom, type) {
 	var editorIndex = 0;
 
 	function convertToIframe (textarea) {
@@ -136,6 +136,9 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 				$ = this.window.jQuery;
 
 			this.panes = panes.init(this.window);
+			if (typeof opts.imageUploadUrl !== "undefined") {
+				this.panes.setEditorOption("filebrowserImageUploadUrl", opts.imageUploadUrl);
+			}
 
 			// TODO: Move to separate init method or similar?
 			this.ui.buttons = {
@@ -425,14 +428,11 @@ define(['editor/pane', 'plugins', 'util/dom'], function (panes, plugins, dom) {
 		 *
 		 *                       'ckeditor': URI to CKEditor library,
 		 *                       'jquery': URI to jQuery library.
-		 *                       'onchange': Callback after changes made by the user using
-		 *                                   the content editor.
+		 *                       'imageUploadUrl': URI to support uploading images to.
 		 * @returns ContentEditor
 		 */
 		init: function (el, opts) {
-			// TODO: Support merging
-			opts = opts || defaults;
-			opts.root = url;
+			opts = type.extend({ root: url }, defaults, opts);
 
 			if (el.nodeName.toLowerCase() == 'textarea') {
 				el = convertToIframe(el);
