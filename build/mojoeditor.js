@@ -2316,7 +2316,36 @@ define('plugins',['plugins/dynamic_content', 'plugins/editables', 'plugins/snipp
 	}
 );
 
-define('editor',['editor/pane', 'plugins', 'util/dom', 'util/type'], function (panes, plugins, dom, type) {
+define('util/url',[],function () {
+	var exports = {};
+
+	exports.concat = function (path1, path2) {
+		var l = path1.substr(-1), s = path2.substr(0, 1);
+		if (l !== '/' && s !== '/') {
+			return path1 + '/' + path2;
+		}
+		else if (l === '/' && s === '/') {
+			return path1 + path2.substr(1);
+		}
+		return path1 + path2;
+	};
+
+	exports.basePath = function (path) {
+		var lastSep = path.lastIndexOf('/');
+		if (lastSep !== -1) {
+			return path.substr(0, lastSep + 1);
+		}
+		return '';
+	};
+
+	exports.isAbsolute = function (url) {
+		return url.substr(0, 3) === 'http' || url.substr(0, 1) === '/';
+	};
+
+	return exports;
+});
+
+define('editor',['editor/pane', 'plugins', 'util/dom', 'util/type', 'util/url'], function (panes, plugins, dom, type, url) {
 	var editorIndex = 0;
 
 	function convertToIframe (textarea) {
@@ -2697,35 +2726,26 @@ define('editor',['editor/pane', 'plugins', 'util/dom', 'util/type'], function (p
 	};
 
 
-	// Lookup the URL of the main script, for referencing default CSS and images
-	var urls = {
-		concat: function (url1, url2) {
-			var l = url1.substr(-1), s = url2.substr(0, 1);
-			if (l !== '/' && s !== '/') {
-				return url1 + '/' + url2;
-			}
-			else if (l === '/' && s === '/') {
-				return url1 + url2.substr(1);
-			}
-			return url1 + url2;
-		}
-	};
-
-	var scripts = document.getElementsByTagName('script'),
-		len = scripts.length, i = 0, url;
-	for ( ; i < len; i++) {
-		if ((url = scripts[i].getAttribute('src') || '').indexOf('mojoeditor') !== -1) {
-			url = url.substr(0, url.indexOf('mojoeditor'));
-			if (url.substr(0, 3) !== 'http') {
-				if (url.substr(0, 1) !== '/') {
-					url = urls.concat(window.location.pathname, url);
+	/**
+	 * Utility function for inspecting script elements to find the base URL to this
+	 * script. Used for referencing static CSS and image files packaged with the editor.
+	 * @return String
+	 */
+	function findBaseUrl () {
+		var scripts = document.getElementsByTagName('script'),
+			len = scripts.length, i = 0,
+			baseUrl;
+		for ( ; i < len; i++) {
+			if ((baseUrl = scripts[i].getAttribute('src') || '').indexOf('mojoeditor') !== -1) {
+				baseUrl = url.basePath(baseUrl);
+				if (!url.isAbsolute(baseUrl)) {
+					baseUrl = url.concat(window.location.pathname, baseUrl);
 				}
+				return baseUrl;
 			}
-			break;
-		}
-		else if ((url = scripts[i].getAttribute('data-main') || '') === 'src/main') {
-			url = urls.concat(window.location.pathname, '/src/');
-			break;
+			else if ((baseUrl = scripts[i].getAttribute('data-main') || '') === 'src/main') {
+				return url.concat(window.location.pathname, '/src/');
+			}
 		}
 	}
 
@@ -2750,7 +2770,7 @@ define('editor',['editor/pane', 'plugins', 'util/dom', 'util/type'], function (p
 		 * @returns ContentEditor
 		 */
 		init: function (el, opts) {
-			opts = type.extend({ root: url }, defaults, opts);
+			opts = type.extend({ root: findBaseUrl() }, defaults, opts);
 
 			if (el.nodeName.toLowerCase() == 'textarea') {
 				el = convertToIframe(el);
