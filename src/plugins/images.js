@@ -3,7 +3,7 @@ define(['../util/dom'], function (dom) {
 
 	ImagesManager = function (editor) {
 		this.editor = editor;
-		this.editIcon = $('<img src="http://static.mailmojo/img/icons/edit.png" alt="Rediger" />')
+		this.editIcon = $('<img src="' + editor.opts.root + 'img/edit.png" alt="Rediger" />')
 				.addClass('mm-edit');
 
 		$('img[editable]')

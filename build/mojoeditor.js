@@ -1350,7 +1350,7 @@ define('plugins/images',['../util/dom'], function (dom) {
 
 	ImagesManager = function (editor) {
 		this.editor = editor;
-		this.editIcon = $('<img src="http://static.mailmojo/img/icons/edit.png" alt="Rediger" />')
+		this.editIcon = $('<img src="' + editor.opts.root + 'img/edit.png" alt="Rediger" />')
 				.addClass('mm-edit');
 
 		$('img[editable]')
@@ -2490,11 +2490,11 @@ define('editor',['editor/pane', 'plugins', 'util/dom', 'util/type', 'util/url'],
 			// TODO: Move to separate init method or similar?
 			this.ui.buttons = {
 				edit: $('<span class="mm-edit" />').append(
-					'<img src="http://static.mailmojo/img/icons/edit.png" alt="Rediger" />'),
+					'<img src="' + this.opts.root + 'img/edit.png" alt="Rediger" />'),
 				add: $('<div class="mm-add" />').append(
 					'<button type="button" class="add">Legg til ny</button>'),
 				remove: $('<span class="mm-remove" />').append(
-					'<img src="http://static.mailmojo/img/icons/delete.png" alt="Slett" />')
+					'<img src="' + this.opts.root + 'img/delete.png" alt="Slett" />')
 			};
 			this.ui.overlay = $('<div class="mm-overlay" />')
 				.css({
@@ -2683,7 +2683,7 @@ define('editor',['editor/pane', 'plugins', 'util/dom', 'util/type', 'util/url'],
 
 		// Create a document fragment <div> with the content, clean up and return HTML
 		$fragment = $('<div/>').append($clones)
-				// Remove MailMojo Content Editor elements
+				// Remove Content Editor elements
 				.find('div.mm-editor, div.mm-add, div.mm-overlay')
 					.remove().end()
 				.find('span.mm-edit, span.mm-remove')
@@ -2751,7 +2751,7 @@ define('editor',['editor/pane', 'plugins', 'util/dom', 'util/type', 'util/url'],
 
 	return {
 		/**
-		 * Initializes a MailMojo Content Editor from a textarea or iframe
+		 * Initializes a Content Editor from a textarea or iframe
 		 * element. Textareas are expected to contain HTML code and it will be
 		 * replaced by an iframe where the HTML is injected into. Iframes are then
 		 * initialized with required JavaScript libraries and CSS for a fully
