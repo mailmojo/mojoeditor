@@ -959,14 +959,7 @@ define('editor/panes',['./ckeditor_config', '../util/dom'], function (editorConf
 						.append(' eller ')
 						.append('<button type="button" class="cancel">avbryt</button>')
 						// Hide without setting 'display: none', see the EditorPane.hide() method
-						.css({
-							position: 'absolute',
-							top: '0px',
-							left: '-1000px',
-							// TODO: Dynamic width
-							width: 600,
-							zIndex: 9000
-						})
+						.css('left', '-1000px')
 						.prependTo(document.body);
 
 			opts = $.extend({}, opts);
@@ -979,12 +972,16 @@ define('editor/panes',['./ckeditor_config', '../util/dom'], function (editorConf
 				$pane.bind('EditorPane.cancel', opts.cancel);
 			}
 
+			// Store the horisontal position for a centered pane
+			$pane.data('visibleLeft', ($(window.document).width() / 2) - ($pane.outerWidth(true) / 2));
+
 			this.type = type;
 			this.pane = $pane[0];
 			// Create and store a reference to the WYSIWYG editor for this pane
 			this.editor = CKEDITOR.appendTo(
 				$pane.find('div.mm-editor-content')[0],
 				$.extend({}, editorConfig, configs[type], {
+					resize_maxHeight: window.document.height - 250,
 					// Event handlers, in the order they will be called
 					on: {
 						pluginsLoaded: function (e) {
@@ -1094,8 +1091,8 @@ define('editor/panes',['./ckeditor_config', '../util/dom'], function (editorConf
 			 * @return EditorPane Reference to this instance.
 			 */
 			show: function () {
-				var self = this;
-
+				var self = this,
+					$pane = $(this.pane);
 
 				if (mode == 'single' && current !== null) {
 					if (this.type != current.getType()) {
@@ -1105,7 +1102,7 @@ define('editor/panes',['./ckeditor_config', '../util/dom'], function (editorConf
 
 				adjustPosition(this.pane);
 
-				$(this.pane).hide().css({ left: 0 }).slideDown(150, function () {
+				$pane.hide().css({ left: $pane.data('visibleLeft') }).slideDown(150, function () {
 					// Expand editor to fit all text, has to be done when pane is visible
 					adjustSize(self.editor);
 					self.editor.focus();
@@ -1258,7 +1255,7 @@ define('editor/panes',['./ckeditor_config', '../util/dom'], function (editorConf
 		 */
 		function adjustPosition (pane) {
 			if (pane) {
-				$(pane).css({position: 'absolute', top: 0});
+				$(pane).css({position: 'fixed', top: 0});
 			}
 		}
 		$(window).scroll(function () {
@@ -2587,9 +2584,24 @@ function (panes, ui, plugins, dom, type, url) {
 				}
 				delete this.listenerQueue;
 			}
-
+			
+			loading.parentNode.removeChild(loading);
 			this.trigger('initialized.editor');
 		}
+
+		var loading = this.document.createElement('div'),
+			loadingInfo = this.document.createElement('div');
+
+		loading.setAttribute('style', 'position: absolute; left: 0; top: 0; z-index: 9999; background-color: #ffffff; background-color: rgba(255, 255, 255, 0.9)');
+		loading.style.width = this.window.innerWidth + 'px';
+		loading.style.height = this.window.innerHeight + 'px';
+
+		loadingInfo.setAttribute('style', 'font: 13px Helvetica, Arial, sans-serif; color: #444444; text-align: center');
+		loadingInfo.style.paddingTop = (this.window.innerHeight / 2 - 20) + 'px';
+
+		loadingInfo.appendChild(this.document.createTextNode('Laster inn editor...'));
+		loading.appendChild(loadingInfo);
+		this.document.body.appendChild(loading);
 
 		loadDependencies.call(this, function () { init.call(this); });
 	};

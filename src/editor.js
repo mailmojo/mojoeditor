@@ -137,9 +137,24 @@ function (panes, ui, plugins, dom, type, url) {
 				}
 				delete this.listenerQueue;
 			}
-
+			
+			loading.parentNode.removeChild(loading);
 			this.trigger('initialized.editor');
 		}
+
+		var loading = this.document.createElement('div'),
+			loadingInfo = this.document.createElement('div');
+
+		loading.setAttribute('style', 'position: absolute; left: 0; top: 0; z-index: 9999; background-color: #ffffff; background-color: rgba(255, 255, 255, 0.9)');
+		loading.style.width = this.window.innerWidth + 'px';
+		loading.style.height = this.window.innerHeight + 'px';
+
+		loadingInfo.setAttribute('style', 'font: 13px Helvetica, Arial, sans-serif; color: #444444; text-align: center');
+		loadingInfo.style.paddingTop = (this.window.innerHeight / 2 - 20) + 'px';
+
+		loadingInfo.appendChild(this.document.createTextNode('Laster inn editor...'));
+		loading.appendChild(loadingInfo);
+		this.document.body.appendChild(loading);
 
 		loadDependencies.call(this, function () { init.call(this); });
 	};

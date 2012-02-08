@@ -123,14 +123,7 @@ define(['./ckeditor_config', '../util/dom'], function (editorConfig, dom) {
 						.append(' eller ')
 						.append('<button type="button" class="cancel">avbryt</button>')
 						// Hide without setting 'display: none', see the EditorPane.hide() method
-						.css({
-							position: 'absolute',
-							top: '0px',
-							left: '-1000px',
-							// TODO: Dynamic width
-							width: 600,
-							zIndex: 9000
-						})
+						.css('left', '-1000px')
 						.prependTo(document.body);
 
 			opts = $.extend({}, opts);
@@ -143,12 +136,16 @@ define(['./ckeditor_config', '../util/dom'], function (editorConfig, dom) {
 				$pane.bind('EditorPane.cancel', opts.cancel);
 			}
 
+			// Store the horisontal position for a centered pane
+			$pane.data('visibleLeft', ($(window.document).width() / 2) - ($pane.outerWidth(true) / 2));
+
 			this.type = type;
 			this.pane = $pane[0];
 			// Create and store a reference to the WYSIWYG editor for this pane
 			this.editor = CKEDITOR.appendTo(
 				$pane.find('div.mm-editor-content')[0],
 				$.extend({}, editorConfig, configs[type], {
+					resize_maxHeight: window.document.height - 250,
 					// Event handlers, in the order they will be called
 					on: {
 						pluginsLoaded: function (e) {
@@ -258,8 +255,8 @@ define(['./ckeditor_config', '../util/dom'], function (editorConfig, dom) {
 			 * @return EditorPane Reference to this instance.
 			 */
 			show: function () {
-				var self = this;
-
+				var self = this,
+					$pane = $(this.pane);
 
 				if (mode == 'single' && current !== null) {
 					if (this.type != current.getType()) {
@@ -269,7 +266,7 @@ define(['./ckeditor_config', '../util/dom'], function (editorConfig, dom) {
 
 				adjustPosition(this.pane);
 
-				$(this.pane).hide().css({ left: 0 }).slideDown(150, function () {
+				$pane.hide().css({ left: $pane.data('visibleLeft') }).slideDown(150, function () {
 					// Expand editor to fit all text, has to be done when pane is visible
 					adjustSize(self.editor);
 					self.editor.focus();
@@ -422,7 +419,7 @@ define(['./ckeditor_config', '../util/dom'], function (editorConfig, dom) {
 		 */
 		function adjustPosition (pane) {
 			if (pane) {
-				$(pane).css({position: 'absolute', top: 0});
+				$(pane).css({position: 'fixed', top: 0});
 			}
 		}
 		$(window).scroll(function () {
