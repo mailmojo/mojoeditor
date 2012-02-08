@@ -52,12 +52,6 @@ define({
 	// List of tags to enable in 'Format' drop down
 	format_tags: 'p;h1;h2;h3;h4;h5;h6;pre',
 
-	/*
-	 * TODO: Backend action returning a CSS file based on <style> elements in template.
-	 * This would enable the most correct CSS/styling of content in the WYSIWYG editor.
-	 */
-	//contentsCss: '/templates/<tid>/css',
-
 	// Disable width resizing by keeping it to a fixed width
 	resize_minWidth: 600,
 	resize_maxWidth: 600,

@@ -6,7 +6,6 @@ function (panes, ui, plugins, dom, type, url) {
 		var iframe = document.createElement('iframe'),
 			iframedoc = null,
 			htmlContent = textarea.value,
-			// TODO: This should be supported for pre-rendered iframes too
 			skypeMetaTag = '<meta name="SKYPE_TOOLBAR" content="SKYPE_TOOLBAR_PARSER_COMPATIBLE" />\n';
 		
 		/*
@@ -42,6 +41,20 @@ function (panes, ui, plugins, dom, type, url) {
 		iframedoc.close();
 
 		return iframe;
+	}
+
+	function sanitizeIframeHtml (iframe) {
+		var doc = iframe.contentWindow.document,
+			head = doc.getElementsByTagName('head').item(0),
+			skypeMetaTag = doc.createElement('meta');
+
+		// XXX: Explorer creates a "submitName" attribute instead...
+		skypeMetaTag.name = 'SKYPE_TOOLBAR';
+		skypeMetaTag.content = 'SKYPE_TOOLBAR_PARSER_COMPATIBLE';
+		head.appendChild(skypeMetaTag);
+
+		doc.body.innerHTML = doc.body.innerHTML.replace(/<mm:(from|date|subject)([^>]*?)\s*\/>/gi,
+				'<mm:$1$2></mm:$1>');
 	}
 
 
@@ -146,11 +159,11 @@ function (panes, ui, plugins, dom, type, url) {
 			loadingInfo = this.document.createElement('div');
 
 		loading.setAttribute('style', 'position: absolute; left: 0; top: 0; z-index: 9999; background-color: #ffffff; background-color: rgba(255, 255, 255, 0.9)');
-		loading.style.width = this.window.innerWidth + 'px';
-		loading.style.height = this.window.innerHeight + 'px';
+		loading.style.width = this.document.documentElement.offsetWidth + 'px';
+		loading.style.height = this.document.documentElement.offsetHeight + 'px';
 
 		loadingInfo.setAttribute('style', 'font: 13px Helvetica, Arial, sans-serif; color: #444444; text-align: center');
-		loadingInfo.style.paddingTop = (this.window.innerHeight / 2 - 20) + 'px';
+		loadingInfo.style.paddingTop = (this.document.documentElement.offsetHeight / 2 - 20) + 'px';
 
 		loadingInfo.appendChild(this.document.createTextNode('Laster inn editor...'));
 		loading.appendChild(loadingInfo);
@@ -365,6 +378,9 @@ function (panes, ui, plugins, dom, type, url) {
 			if (el.nodeName.toLowerCase() == 'textarea') {
 				el = convertToIframe(el);
 			}			
+			else {
+				sanitizeIframeHtml(el);
+			}
 
 			return new ContentEditor(el, opts);
 		},
