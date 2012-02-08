@@ -1,5 +1,6 @@
-define(['editor/pane', 'plugins', 'util/dom', 'util/type', 'util/url'], function (panes, plugins, dom, type, url) {
-	var editorIndex = 0;
+define(['editor/panes', 'editor/ui', 'plugins', 'util/dom', 'util/type', 'util/url'],
+function (panes, ui, plugins, dom, type, url) {
+
 
 	function convertToIframe (textarea) {
 		var iframe = document.createElement('iframe'),
@@ -43,73 +44,39 @@ define(['editor/pane', 'plugins', 'util/dom', 'util/type', 'util/url'], function
 		return iframe;
 	}
 
+
 	/**
-	 * Creates a script element referring to an external JavaScript file, and injects it into
-	 * the element specified.
-	 *
-	 * @param HTMLElement element Element to inject script into.
-	 * @param String file         URL, relative or absolute, of JavaScript file.
-	 * @param Function fn         Callback when script has loaded.
-	 * @return HTMLScriptElement
+	 * Utility function for inspecting script elements to find the base URL to this
+	 * script. Used for referencing static CSS and image files packaged with the editor.
+	 * @return String
 	 */
-	function injectJavaScript (element, file, fn) {
-		var script = element.ownerDocument.createElement('script');
-
-		script.setAttribute('type', 'text/javascript');
-
-		if (typeof fn == 'function') {
-			script.onreadystatechange = script.onload = function (e) {
-				e = e || element.ownerDocument.parentWindow.event;
-
-				/*
-				 * For readystatechange events we need to check for both 'complete' and 'loaded'
-				 * states. Internet Explorer may report either one of them, depending on how
-				 * the file was loaded (i.e. from cache or server).
-				 */
-				if (e.type == 'load' ||
-						(e.type == 'readystatechange' &&
-							(script.readyState == 'complete' || script.readyState == 'loaded'))) {
-					fn(e);
-					// We don't want to trigger both onreadystatechange and onload in a browser.
-					script.onreadystatechange = script.onload = null;
+	function findBaseUrl () {
+		var scripts = document.getElementsByTagName('script'),
+			len = scripts.length, i = 0,
+			baseUrl;
+		for ( ; i < len; i++) {
+			if ((baseUrl = scripts[i].getAttribute('src') || '').indexOf('mojoeditor') !== -1) {
+				baseUrl = url.basePath(baseUrl);
+				if (!url.isAbsolute(baseUrl)) {
+					baseUrl = url.concat(window.location.pathname, baseUrl);
 				}
-			};
+				return baseUrl;
+			}
+			else if ((baseUrl = scripts[i].getAttribute('data-main') || '') === 'src/main') {
+				return url.concat(window.location.pathname, '/src/');
+			}
 		}
-
-		script.setAttribute('src', file);
-		return element.appendChild(script);
 	}
+
 
 	/**
-	 * Creates a link element referring to an external stylesheet file, and injects it into
-	 * the element specified.
-	 *
-	 * @param HTMLElement element Element to inject stylesheet into.
-	 * @param String file         URL, relative or absolute, of stylesheet file.
-	 * @return HTMLLinkElement
+	 * TODO: Comment me!
 	 */
-	function injectStyleSheet (element, file) {
-		var style = element.ownerDocument.createElement('link');
-
-		style.setAttribute('type', 'text/css');
-		style.setAttribute('rel', 'stylesheet');
-		style.setAttribute('href', file);
-		return element.appendChild(style);
-	}
-
-	var defaults = {
-		ckeditor: 'http://static.mailmojo/js/lib/ckeditor/ckeditor.js',
-		jquery: 'http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js'
-	};
-
-
 	var ContentEditor = function (iframe, opts) {
-		var EditorPane = null;
-
-		this.iframe = iframe;
 		this.window = iframe.contentWindow;
 		this.document = iframe.contentWindow.document;
-		this.opts = opts;
+		this.opts = type.extend({}, ContentEditor.defaults, opts);
+
 		this.listenerQueue = [];
 		this.panes = null;
 		this.ui = {};
@@ -126,9 +93,9 @@ define(['editor/pane', 'plugins', 'util/dom', 'util/type', 'util/url'], function
 				}
 			}
 
-			injectStyleSheet(header, this.opts.root + 'css/editor.css');
-			injectJavaScript(header, this.opts.ckeditor, onload);
-			injectJavaScript(header, this.opts.jquery, onload);
+			dom.injectStyleSheet(header, this.opts.root + 'css/editor.css');
+			dom.injectJavaScript(header, this.opts.ckeditor, onload);
+			dom.injectJavaScript(header, this.opts.jquery, onload);
 		}
 
 		function init () {
@@ -140,31 +107,7 @@ define(['editor/pane', 'plugins', 'util/dom', 'util/type', 'util/url'], function
 				this.panes.setEditorOption("filebrowserImageUploadUrl", opts.imageUploadUrl);
 			}
 
-			// TODO: Move to separate init method or similar?
-			this.ui.buttons = {
-				edit: $('<span class="mm-edit" />').append(
-					'<img src="' + this.opts.root + 'img/edit.png" alt="Rediger" />'),
-				add: $('<div class="mm-add" />').append(
-					'<button type="button" class="add">Legg til ny</button>'),
-				remove: $('<span class="mm-remove" />').append(
-					'<img src="' + this.opts.root + 'img/delete.png" alt="Slett" />')
-			};
-			this.ui.overlay = $('<div class="mm-overlay" />')
-				.css({
-					position: 'fixed',
-					top: 0,
-					left: 0,
-					width: '100%',
-					// TODO: Size dynamically
-					height: '100%',
-					backgroundColor: '#ffffff',
-					opacity: 0.5,
-					zIndex: 900  // The editor panel has a z-index of 1000
-				})
-				.bind('mousedown selectstart', function (e) {
-					e.preventDefault();
-					return false;
-				});
+			this.ui = ui.init(this);
 
 			/*
 			 * Since internet explorer does not have an importNode function
@@ -199,6 +142,11 @@ define(['editor/pane', 'plugins', 'util/dom', 'util/type', 'util/url'], function
 		}
 
 		loadDependencies.call(this, function () { init.call(this); });
+	};
+	ContentEditor.defaults = {
+		root: findBaseUrl(),
+		ckeditor: 'http://static.mailmojo/js/lib/ckeditor/ckeditor.js',
+		jquery: 'http://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js'
 	};
 
 	/**
@@ -376,31 +324,7 @@ define(['editor/pane', 'plugins', 'util/dom', 'util/type', 'util/url'], function
 		var $window = this.window.jQuery(this.window),
 			args = Array.prototype.slice.call(arguments);
 		$window.trigger.apply($window, args);
-	};
-
-
-	/**
-	 * Utility function for inspecting script elements to find the base URL to this
-	 * script. Used for referencing static CSS and image files packaged with the editor.
-	 * @return String
-	 */
-	function findBaseUrl () {
-		var scripts = document.getElementsByTagName('script'),
-			len = scripts.length, i = 0,
-			baseUrl;
-		for ( ; i < len; i++) {
-			if ((baseUrl = scripts[i].getAttribute('src') || '').indexOf('mojoeditor') !== -1) {
-				baseUrl = url.basePath(baseUrl);
-				if (!url.isAbsolute(baseUrl)) {
-					baseUrl = url.concat(window.location.pathname, baseUrl);
-				}
-				return baseUrl;
-			}
-			else if ((baseUrl = scripts[i].getAttribute('data-main') || '') === 'src/main') {
-				return url.concat(window.location.pathname, '/src/');
-			}
-		}
-	}
+	};	
 
 	return {
 		/**
@@ -423,8 +347,6 @@ define(['editor/pane', 'plugins', 'util/dom', 'util/type', 'util/url'], function
 		 * @returns ContentEditor
 		 */
 		init: function (el, opts) {
-			opts = type.extend({ root: findBaseUrl() }, defaults, opts);
-
 			if (el.nodeName.toLowerCase() == 'textarea') {
 				el = convertToIframe(el);
 			}			

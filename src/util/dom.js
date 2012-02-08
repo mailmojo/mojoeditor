@@ -85,6 +85,60 @@ define(function () {
 		},
 
 		/**
+		 * Creates a script element referring to an external JavaScript file, and injects it into
+		 * the element specified.
+		 *
+		 * @param HTMLElement element Element to inject script into.
+		 * @param String file         URL, relative or absolute, of JavaScript file.
+		 * @param Function fn         Callback when script has loaded.
+		 * @return HTMLScriptElement
+		 */
+		injectJavaScript: function (element, file, fn) {
+			var script = element.ownerDocument.createElement('script');
+
+			script.setAttribute('type', 'text/javascript');
+
+			if (typeof fn == 'function') {
+				script.onreadystatechange = script.onload = function (e) {
+					e = e || element.ownerDocument.parentWindow.event;
+
+					/*
+					 * For readystatechange events we need to check for both 'complete' and 'loaded'
+					 * states. Internet Explorer may report either one of them, depending on how
+					 * the file was loaded (i.e. from cache or server).
+					 */
+					if (e.type == 'load' ||
+							(e.type == 'readystatechange' &&
+								(script.readyState == 'complete' || script.readyState == 'loaded'))) {
+						fn(e);
+						// We don't want to trigger both onreadystatechange and onload in a browser.
+						script.onreadystatechange = script.onload = null;
+					}
+				};
+			}
+
+			script.setAttribute('src', file);
+			return element.appendChild(script);
+		},
+
+		/**
+		 * Creates a link element referring to an external stylesheet file, and injects it into
+		 * the element specified.
+		 *
+		 * @param HTMLElement element Element to inject stylesheet into.
+		 * @param String file         URL, relative or absolute, of stylesheet file.
+		 * @return HTMLLinkElement
+		 */
+		injectStyleSheet: function (element, file) {
+			var style = element.ownerDocument.createElement('link');
+
+			style.setAttribute('type', 'text/css');
+			style.setAttribute('rel', 'stylesheet');
+			style.setAttribute('href', file);
+			return element.appendChild(style);
+		},
+
+		/**
 		 * Compatibility wrapper for avoiding NULL values for attribute being inserted as the string
 		 * value 'null', and to simply remove attributes with an empty string value.
 		 *
