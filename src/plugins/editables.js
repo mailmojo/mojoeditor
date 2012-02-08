@@ -1,11 +1,11 @@
-define(function () {
+define(['../util/browser'], function (browser) {
 	var jQuery, EditablesManager,
 		/**
 		 * List of editable elements which supports block editing.
 		 * Internet Explorer does not support namespaces, so match without namespace for it.
 		 * @var Array
 		 */
-		BLOCK_ELEMENTS = ['mm:content']; //$.support.namespaces ? ['mm:content'] : ['content'],
+		BLOCK_ELEMENTS = browser.support.namespaces ? ['mm:content'] : ['content'];
 
 	/**
 	 * Determines if an element is one of the block editable elements.
@@ -43,6 +43,7 @@ define(function () {
 			$button = jQuery(e.target).closest('.mm-edit'),
 			$container = $button.parent(),
 			type = isBlockElement($container) ? 'Block' : 'Inline';
+
 		// Adds an overlay to the background
 		this.editor.toggleOverlay(true);
 
@@ -52,12 +53,11 @@ define(function () {
 		}
 
 		// Remove edit button from the content to be edited
-		$button.remove();
+		$button.detach();
 
 		var resetter = jQuery.proxy(function (editor, pane) {
-			var $newButton = editor.ui.buttons.edit.clone();
 			editor.toggleOverlay(false);
-			$container.append($newButton.click(jQuery.proxy(this.edit, this)));
+			jQuery(pane.getElement()).append($button.clone(true));
 		}, this);
 		
 		// Get a reference for an appropriate editor pane and display it
@@ -67,7 +67,7 @@ define(function () {
 				handleCancel: resetter
 			})
 			.setElement($container).show();
-	}
+	};
 
 	return {
 		register: function (editor) {

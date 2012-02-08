@@ -10,35 +10,12 @@
 			}
 
 			iframe {
-				border: 0;
+				border: 1px solid #a9a9a9;
 			}
 		</style>
 	</head>
 	<body>
-		<textarea id="content">
-			&lt;html&gt;
-				&lt;body&gt;
-					&lt;p&gt;This content can be edited soon!&lt;/p&gt;
-
-					&lt;span editable="editable"&gt;Rediger dette!&lt;/span&gt;
-
-					&lt;a editable="editable" href="http://e5r.no"&gt;Edit this link&lt;/a&gt;
-
-					&lt;img editable="editable" src="http://e5r.no/img/logo.png" /&gt;
-
-					&lt;p&gt;Test of dynamic content elements:&lt;br/&gt;
-						&lt;mm:date format="%d. %B %Y" lang="no" /&gt;&lt;br/&gt;
-						&lt;mm:subject /&gt;&lt;br/&gt;
-						&lt;mm:from /&gt;&lt;br/&gt;
-						&lt;mm:share on="twitter" /&gt;
-					&lt;/p&gt;
-
-					&lt;mm:snippet&gt;
-						&lt;p&gt;Dette avsnittet kan dupliseres!&lt;/p&gt;
-					&lt;/mm:snippet&gt;
-				&lt;/body&gt;
-			&lt;/html&gt;
-		</textarea>
+		<iframe id="content" src="content.html"></iframe>
 
 		<!--script src="build/mojoeditor.min.js"></script-->
 		<script data-main="src/main" src="src/lib/requirejs/require.js"></script>
