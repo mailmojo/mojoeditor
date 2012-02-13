@@ -49,9 +49,11 @@ function (panes, ui, plugins, dom, type, url) {
 			skypeMetaTag = doc.createElement('meta');
 
 		// XXX: Explorer creates a "submitName" attribute instead...
+		/*
 		skypeMetaTag.name = 'SKYPE_TOOLBAR';
 		skypeMetaTag.content = 'SKYPE_TOOLBAR_PARSER_COMPATIBLE';
 		head.appendChild(skypeMetaTag);
+		*/
 
 		doc.body.innerHTML = doc.body.innerHTML.replace(/<mm:(from|date|subject)([^>]*?)\s*\/>/gi,
 				'<mm:$1$2></mm:$1>');
@@ -303,15 +305,42 @@ function (panes, ui, plugins, dom, type, url) {
 	ContentEditor.prototype.getContent = function () {
 		var
 			$ = this.window.jQuery,
-			$clones = $(this.window.document).children().clone(false),
+			$html, $head, $bodyClone,
 			$fragment = null,
-			html = '';
+			customHeadContent = "meta[name='SKYPE_TOOLBAR'], script, link",
+			output = '';
 
-		// Strip out our custom content in the <head>
-		$clones = $clones.find("meta[name='SKYPE_TOOLBAR'], script, link").remove().end();
+		/*
+		 * Internet Explorer's node cloning is broken, for example cloning script elements
+		 * triggers a re-processing of the scripts (it seems). So we have to walk around this
+		 * problem for Internet Explorer while other browsers gets a much more simplified and faster
+		 * solution.
+		 */
+		if ($.browser.msie) {
+			$html = $('<html/>');
+			$head = $('<head/>');
+
+			$bodyClone = $(this.window.document.body).clone(false);
+
+			// Remove custom CKEditor event handler
+			$bodyClone.removeAttr('onpageshow');
+
+			// Clone head element contents without our scripts and styles
+			$head.append($('head > *:not(' + customHeadContent + ')').clone(false));
+
+			// Build complete HTML document with cloned content
+			$html.append($head).append($bodyClone);
+		}
+		else {
+			$html = $(this.document).contents().clone(false);
+			if ($html.length > 1) {
+				$html = $html.eq(1);
+			}
+			$html.find(customHeadContent).remove();
+		}
 
 		// Create a document fragment <div> with the content, clean up and return HTML
-		$fragment = $('<div/>').append($clones)
+		$fragment = $('<div/>').append($html)
 				// Remove Content Editor elements
 				.find('div.mm-editor, div.mm-add, div.mm-overlay')
 					.remove().end()
@@ -326,13 +355,15 @@ function (panes, ui, plugins, dom, type, url) {
 		// Let plugins clean up content too
 		this.trigger('filtercontent.editor', [$fragment]);
 
-		html = $fragment.html();
+		output = dom.getDoctypeString(this.document) + $fragment.html();
 
-		// Strip XML prolog which is injected by Internet Explorer
 		if ($.browser.msie) {
-			html = html.replace(/<\?xml[^>]+>/gi, '');
+			// Strip XML prolog which is injected by Internet Explorer
+			output = output.replace(/<\?xml[^>]+>/gi, '');
+			// Fix stupid Internet Explorer bug which doesn't manage to clone title contents
+			output = output.replace(/<title><\/title>/i, '<title>' + $('title').html() + '</title>');
 		}
-		return html;
+		return output;
 	};
 
 	ContentEditor.prototype.on = function (event, callback) {

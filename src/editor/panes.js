@@ -126,15 +126,19 @@ define(['./ckeditor_config', '../util/dom'], function (editorConfig, dom) {
 						.css('left', '-1000px')
 						.prependTo(document.body);
 
-			opts = $.extend({}, opts);
+			this.setOptions(opts);
 
 			// Hook up any event handlers for save/cancel events
-			if (typeof opts.save == 'function') {
-				$pane.bind('EditorPane.save', opts.save);
-			}
-			if (typeof opts.cancel == 'function') {
-				$pane.bind('EditorPane.cancel', opts.cancel);
-			}
+			$pane.bind('EditorPane.save', function (e, pane) {
+				if (typeof self.opts.save == 'function') {
+					self.opts.save(e, pane);
+				}
+			});
+			$pane.bind('EditorPane.cancel', function (e, pane) {
+				if (typeof self.opts.cancel == 'function') {
+					self.opts.cancel(e, pane);
+				}
+			});
 
 			// Store the horisontal position for a centered pane
 			$pane.data('visibleLeft', ($(window.document).width() / 2) - ($pane.outerWidth(true) / 2));
@@ -149,14 +153,14 @@ define(['./ckeditor_config', '../util/dom'], function (editorConfig, dom) {
 					// Event handlers, in the order they will be called
 					on: {
 						pluginsLoaded: function (e) {
-							if (typeof opts.loaded == 'function') {
-								opts.loaded.call(self);
+							if (typeof self.opts.loaded == 'function') {
+								self.opts.loaded.call(self);
 							}
 						},
 						instanceCreated: function () { },
 						instanceReady: function (e) {
-							if (typeof opts.ready == 'function') {
-								opts.ready.call(self);
+							if (typeof self.opts.ready == 'function') {
+								self.opts.ready.call(self);
 							}
 						},
 						getData: filterEditorData
@@ -176,6 +180,10 @@ define(['./ckeditor_config', '../util/dom'], function (editorConfig, dom) {
 		};
 
 		EditorPane.prototype = {
+			setOptions: function (opts) {
+				this.opts = $.extend({}, opts);
+			},
+
 			/**
 			 * Set the editor's related element which the WYSIWYG editor's contents will be
 			 * fetched from.
@@ -268,9 +276,11 @@ define(['./ckeditor_config', '../util/dom'], function (editorConfig, dom) {
 
 				$pane.hide().css({ left: $pane.data('visibleLeft') }).slideDown(150, function () {
 					// Expand editor to fit all text, has to be done when pane is visible
-					adjustSize(self.editor);
-					self.editor.focus();
-					current = self;
+					setTimeout(function () {
+						adjustSize(self.editor);
+						self.editor.focus();
+						current = self;
+					}, 50);
 				});
 				return this;
 			},
@@ -482,6 +492,7 @@ define(['./ckeditor_config', '../util/dom'], function (editorConfig, dom) {
 					if (typeof opts.ready == 'function') {
 						opts.ready.call(instances[type]);
 					}
+					instances[type].setOptions(opts);
 				}
 				else {
 					instances[type] = new EditorPane(type, opts);

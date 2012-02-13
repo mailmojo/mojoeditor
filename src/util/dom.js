@@ -60,6 +60,20 @@ define(function () {
 	}
 
 	return {
+		getDoctypeString: function (doc) {
+			if (doc.doctype !== null) {
+				return '<!DOCTYPE ' + doc.doctype.name + ' PUBLIC ' +
+						doc.doctype.publicId + ' ' +
+						doc.doctype.systemId + '>';
+			}
+			else {
+				if (doc.childNodes[0].nodeType === 8) {
+					return '<!' + doc.childNodes[0].nodeValue + '>';
+				}
+			}
+			return null;
+		},
+
 		/**
 		 * Creates properties needed for the custom importNode function and
 		 * adds the customImportNode function to importNode.

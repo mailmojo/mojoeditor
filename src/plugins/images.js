@@ -1,5 +1,5 @@
 define(['../util/dom'], function (dom) {
-	var $, ImagesManager;
+	var $, CKEDITOR, ImagesManager;
 
 	ImagesManager = function (editor) {
 		this.editor = editor;
@@ -401,8 +401,8 @@ define(['../util/dom'], function (dom) {
 		}
 
 		// Check if the mouse actually went outside the image boundaries
-		if (e.clientX < pos.left || e.clientX > pos.left + size.width
-				|| e.clientY < pos.top || e.clientY > pos.top + size.height) {
+		if (e.clientX < pos.left || e.clientX > pos.left + size.width ||
+				e.clientY < pos.top || e.clientY > pos.top + size.height) {
 			this.hideImageEditIcon();
 		}
 	};
@@ -420,6 +420,7 @@ define(['../util/dom'], function (dom) {
 		register: function (editor) {
 			if (typeof $ === "undefined") {
 				$ = editor.window.jQuery;
+				CKEDITOR = editor.window.CKEDITOR;
 			}
 			new ImagesManager(editor);
 		}
