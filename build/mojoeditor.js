@@ -424,21 +424,17 @@ define('locales',{
 
 define('util/browser',{
 	support: {
-		namespaces: (function () {
-			var block = document.createElement('mm:content');
+		namespaces: function (d) {
+			d = d || document;
+
+			var block = d.createElement('mm:content');
 			return (block.nodeName.toLowerCase() == 'mm:content');
-		})()
+		}
 	}
 });
 
 define('plugins/editables',['../util/browser'], function (browser) {
-	var jQuery, EditablesManager,
-		/**
-		 * List of editable elements which supports block editing.
-		 * Internet Explorer does not support namespaces, so match without namespace for it.
-		 * @var Array
-		 */
-		BLOCK_ELEMENTS = browser.support.namespaces ? ['mm:content'] : ['content'];
+	var jQuery, EditablesManager;
 
 	/**
 	 * Determines if an element is one of the block editable elements.
@@ -450,7 +446,7 @@ define('plugins/editables',['../util/browser'], function (browser) {
 		if (typeof element.jquery !== 'undefined') {
 			element = element[0];
 		}
-		return (jQuery.inArray(element.nodeName.toLowerCase(), BLOCK_ELEMENTS) !== -1);
+		return (jQuery.inArray(element.nodeName.toLowerCase(), EditablesManager.BLOCK_ELEMENTS) !== -1);
 	}
 
 	EditablesManager = function (editor) {
@@ -465,6 +461,12 @@ define('plugins/editables',['../util/browser'], function (browser) {
 	EditablesManager.SELECTOR = "h1[editable], h2[editable], h3[editable], " +
 			"h4[editable], h5[editable], h6[editable], td[editable], p[editable], span[editable], " +
 			"mm\\:content, content";
+	/**
+	 * List of editable elements which supports block editing.
+	 * Internet Explorer 7 does not support namespaces, so match without namespace for it.
+	 * @var Array
+	 */
+	EditablesManager.BLOCK_ELEMENTS = [];
 
 	/**
 	 * Initializes editing of an element's content in a WYSIWYG editor.
@@ -504,7 +506,11 @@ define('plugins/editables',['../util/browser'], function (browser) {
 
 	return {
 		register: function (editor) {
-			jQuery = editor.window.jQuery;
+			if (typeof jQuery == "undefined") {
+				jQuery = editor.window.jQuery;
+				EditablesManager.BLOCK_ELEMENTS = browser.support.namespaces(editor.document) ?
+						['mm:content'] : ['content'];
+			}
 			new EditablesManager(editor);
 		}
 	};

@@ -15,16 +15,27 @@
 		</style>
 	</head>
 	<body>
-		<iframe id="content" src="content.html"></iframe>
+		<textarea id="content">
+			&lt;!doctype html&gt;
+			&lt;html&gt;
+			&lt;head&gt;&lt;/head&gt;
+			&lt;body&gt;
+			&lt;mm:content&gt;
+				&lt;p&gt;foo bar&lt;/p&gt;
+			&lt;/mm:content&gt;
+			&lt;/body&gt;
+			&lt;/html&gt;
+		</textarea>
+		<!--iframe id="content" src="content.html"></iframe-->
 
 		<!--script src="build/mojoeditor.min.js"></script-->
 		<script data-main="src/main" src="src/lib/requirejs/require.js"></script>
 		<script>
 			require(['main'], function () {
 				var content = document.getElementById('content'),
-				editor = MojoEditor.init(content, {
-					imageUploadUrl: '/images/upload'
-				});
+					editor = MojoEditor.init(content, {
+						imageUploadUrl: '/images/upload'
+					});
 
 				editor
 					.on('initialized.editor', function (e) {
